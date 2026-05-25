@@ -83,3 +83,14 @@ export interface Connection {
   last_synced_at: string | null;
   error_message: string | null;
 }
+
+export type {
+  CommerceDashboardOverview,
+  CommerceKPIs,
+  OrdersByStatus,
+  RecentOrderSummary,
+  RevenueByDay,
+  SetupStatus,
+  StoreSummary,
+  TopCampaignSummary,
+} from "./dashboard-commerce";

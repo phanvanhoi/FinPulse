@@ -13,8 +13,21 @@ from app.schemas.dashboard import (
     FinancialSummary,
     MarketingSummary,
 )
+from app.schemas.dashboard_commerce import CommerceDashboardOverview
+from app.services import dashboard_commerce_service
 
 router = APIRouter()
+
+
+@router.get("/commerce-overview", response_model=CommerceDashboardOverview)
+async def get_commerce_dashboard_overview(
+    current_user: CurrentUser,
+    db: DB,
+    period_days: int = Query(default=30, ge=7, le=90),
+):
+    return await dashboard_commerce_service.get_commerce_overview(
+        db, current_user.organization_id, period_days=period_days
+    )
 
 
 @router.get("/overview", response_model=DashboardOverview)

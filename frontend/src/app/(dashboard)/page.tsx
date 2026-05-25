@@ -1,167 +1,266 @@
 "use client";
 
 import { useEffect } from "react";
-import { Col, Row, Typography } from "antd";
+import Link from "next/link";
+import { Alert, Button, Col, Row, Segmented, Space, Table, Tag, Typography } from "antd";
+import { LinkOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import type { ColumnsType } from "antd/es/table";
 import MetricCard from "@/components/dashboard/MetricCard";
-import RevenueChart from "@/components/charts/RevenueChart";
-import RoasChart from "@/components/charts/RoasChart";
-import InsightCard from "@/components/insights/InsightCard";
-import { useDashboardStore } from "@/stores/dashboard-store";
+import SetupChecklist from "@/components/dashboard/SetupChecklist";
+import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
+import { useCommerceDashboardStore } from "@/stores/commerce-dashboard-store";
+import { useAuthStore } from "@/stores/auth-store";
+import type { RecentOrderSummary, TopCampaignSummary } from "@/lib/types";
+import CommerceRevenueChart from "@/components/charts/CommerceRevenueChart";
+import OrdersStatusChart from "@/components/charts/OrdersStatusChart";
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
-// Demo insights for initial display before API is connected
-const demoInsights = [
-  {
-    id: "1",
-    insight_type: "recommendation",
-    category: "blended",
-    title: "Your Google Ads ROAS dropped 18% while COGS rose 5%",
-    body_markdown:
-      "Your advertising return on spend decreased from 3.2x to 2.6x this week. At the same time, your cost of goods sold increased by 5%. Consider pausing underperforming campaigns and investigating the supply cost increase.",
-    severity: "warning",
-    data_context: null,
-    is_read: false,
-    generated_at: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    insight_type: "summary",
-    category: "financial",
-    title: "Cash runway is healthy at 8.5 months",
-    body_markdown:
-      "Based on your current burn rate of $12,500/month and cash on hand of $106,250, you have approximately 8.5 months of runway. Revenue growth of 12% month-over-month is extending this further.",
-    severity: "info",
-    data_context: null,
-    is_read: false,
-    generated_at: new Date().toISOString(),
-  },
-  {
-    id: "3",
-    insight_type: "alert",
-    category: "marketing",
-    title: "Brand Search campaign is your top performer at 5.2x ROAS",
-    body_markdown:
-      "Consider increasing budget allocation to Brand Search. It consistently outperforms other campaigns and has room to scale based on impression share data.",
-    severity: "info",
-    data_context: null,
-    is_read: true,
-    generated_at: new Date().toISOString(),
-  },
-];
+const statusColors: Record<string, string> = {
+  paid: "green",
+  pending: "orange",
+  failed: "red",
+  refunded: "default",
+};
+
+const campaignStatusColors: Record<string, string> = {
+  live: "green",
+  draft: "default",
+  ended: "red",
+};
 
 export default function DashboardPage() {
-  const { overview, isLoading, fetchOverview, fetchCampaigns, fetchInsights } = useDashboardStore();
+  const { user, fetchUser } = useAuthStore();
+  const { overview, isLoading, error, periodDays, setPeriodDays, fetchCommerceOverview } =
+    useCommerceDashboardStore();
 
   useEffect(() => {
-    fetchOverview();
-    fetchCampaigns();
-    fetchInsights();
-  }, [fetchOverview, fetchCampaigns, fetchInsights]);
+    fetchUser();
+    fetchCommerceOverview();
+  }, [fetchUser, fetchCommerceOverview]);
+
+  const kpis = overview?.kpis;
+  const hasSales = (kpis?.orders_count ?? 0) > 0 || (kpis?.revenue ?? 0) > 0;
+
+  const topCampaignColumns: ColumnsType<TopCampaignSummary> = [
+    {
+      title: "Campaign",
+      dataIndex: "title",
+      key: "title",
+      render: (title: string, record) => (
+        <div>
+          <Text strong>{title}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {record.units_sold} sold
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => <Tag color={campaignStatusColors[status]}>{status.toUpperCase()}</Tag>,
+    },
+    {
+      title: "Revenue",
+      dataIndex: "revenue",
+      key: "revenue",
+      render: (v: number) => `$${Number(v).toFixed(2)}`,
+    },
+    {
+      title: "",
+      key: "action",
+      render: (_: unknown, record) =>
+        record.status === "live" ? (
+          <Link href={`/campaign/${record.slug}`} target="_blank">
+            <Button size="small">View</Button>
+          </Link>
+        ) : null,
+    },
+  ];
+
+  const recentOrderColumns: ColumnsType<RecentOrderSummary> = [
+    {
+      title: "Customer",
+      dataIndex: "customer_email",
+      key: "customer_email",
+      render: (email: string, record) => (
+        <div>
+          <Text>{email}</Text>
+          {record.campaign_title && (
+            <>
+              <br />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {record.campaign_title}
+              </Text>
+            </>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "Total",
+      dataIndex: "total",
+      key: "total",
+      render: (v: number) => `$${Number(v).toFixed(2)}`,
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => <Tag color={statusColors[status]}>{status.toUpperCase()}</Tag>,
+    },
+    {
+      title: "Date",
+      dataIndex: "created_at",
+      key: "created_at",
+      render: (v: string) => new Date(v).toLocaleDateString(),
+    },
+  ];
 
   return (
     <div>
-      <Title level={3} style={{ marginBottom: 24 }}>
-        Dashboard Overview
-      </Title>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+        <div>
+          <Title level={3} style={{ marginBottom: 4 }}>
+            {user?.name ? `Welcome back, ${user.name}` : "Dashboard"}
+          </Title>
+          <Text type="secondary">
+            {overview?.store?.name ? `${overview.store.name} — seller overview` : "Your store at a glance"}
+          </Text>
+        </div>
+        <Space wrap>
+          <Segmented
+            options={[
+              { label: "7 days", value: 7 },
+              { label: "30 days", value: 30 },
+              { label: "90 days", value: 90 },
+            ]}
+            value={periodDays}
+            onChange={(v) => setPeriodDays(v as number)}
+          />
+          {overview?.store && (
+            <a href={overview.store.storefront_url} target="_blank" rel="noreferrer">
+              <Button icon={<LinkOutlined />}>View Storefront</Button>
+            </a>
+          )}
+          <Link href="/campaigns/new">
+            <Button type="primary" icon={<PlusOutlined />}>
+              New Campaign
+            </Button>
+          </Link>
+        </Space>
+      </div>
 
-      {/* Financial Metrics */}
+      {error && (
+        <Alert
+          type="error"
+          message={error}
+          action={
+            <Button size="small" icon={<ReloadOutlined />} onClick={fetchCommerceOverview}>
+              Retry
+            </Button>
+          }
+          style={{ marginBottom: 24 }}
+        />
+      )}
+
+      {overview && <SetupChecklist setup={overview.setup} store={overview.store} />}
+
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
           <MetricCard
             title="Revenue"
-            value={overview?.financial.revenue ?? 67000}
+            value={Number(kpis?.revenue ?? 0)}
             prefix="$"
-            precision={0}
-            changePct={overview?.financial.revenue_change_pct ?? 12.3}
+            precision={2}
+            changePct={kpis?.revenue_change_pct ?? null}
             loading={isLoading}
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard
-            title="Net Income"
-            value={overview?.financial.net_income ?? 29000}
-            prefix="$"
-            precision={0}
-            loading={isLoading}
-          />
+          <MetricCard title="Orders" value={kpis?.orders_count ?? 0} loading={isLoading} />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard
-            title="Cash on Hand"
-            value={overview?.financial.cash_on_hand ?? 106250}
-            prefix="$"
-            precision={0}
-            loading={isLoading}
-          />
+          <MetricCard title="Units Sold" value={kpis?.units_sold ?? 0} loading={isLoading} />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard
-            title="Gross Margin"
-            value={overview?.financial.gross_margin_pct ?? 43.3}
-            suffix="%"
-            precision={1}
-            loading={isLoading}
-          />
+          <MetricCard title="Live Campaigns" value={kpis?.live_campaigns ?? 0} loading={isLoading} />
         </Col>
       </Row>
 
-      {/* Marketing Metrics */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
           <MetricCard
-            title="Ad Spend"
-            value={overview?.marketing.total_spend ?? 12800}
-            prefix="$"
-            precision={0}
-            changePct={overview?.marketing.spend_change_pct ?? -5.2}
+            title="Pending Orders"
+            value={kpis?.orders_pending ?? 0}
             loading={isLoading}
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <MetricCard
-            title="Conversions"
-            value={overview?.marketing.total_conversions ?? 342}
-            loading={isLoading}
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <MetricCard
-            title="Overall ROAS"
-            value={overview?.marketing.overall_roas ?? 2.8}
-            suffix="x"
-            precision={1}
-            loading={isLoading}
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <MetricCard
-            title="Est. CAC"
-            value={overview?.estimated_cac ?? 37.4}
+            title="Avg Order Value"
+            value={Number(kpis?.avg_order_value ?? 0)}
             prefix="$"
             precision={2}
             loading={isLoading}
           />
         </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <MetricCard title="Draft Campaigns" value={kpis?.draft_campaigns ?? 0} loading={isLoading} />
+        </Col>
       </Row>
 
-      {/* Charts */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={12}>
-          <RevenueChart data={[]} loading={isLoading} />
+          <CommerceRevenueChart data={overview?.revenue_by_day ?? []} loading={isLoading} />
         </Col>
         <Col xs={24} lg={12}>
-          <RoasChart data={[]} loading={isLoading} />
+          <OrdersStatusChart data={overview?.orders_by_status ?? []} loading={isLoading} />
         </Col>
       </Row>
 
-      {/* AI Insights */}
-      <Title level={4} style={{ marginBottom: 16 }}>
-        AI Insights
-      </Title>
-      {demoInsights.map((insight) => (
-        <InsightCard key={insight.id} insight={insight} />
-      ))}
+      {!isLoading && overview && !hasSales && overview.top_campaigns.length === 0 ? (
+        <DashboardEmptyState />
+      ) : (
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={12}>
+            <Title level={5} style={{ marginBottom: 12 }}>
+              Top Campaigns
+            </Title>
+            <Table
+              rowKey="id"
+              columns={topCampaignColumns}
+              dataSource={overview?.top_campaigns ?? []}
+              loading={isLoading}
+              pagination={false}
+              size="small"
+            />
+          </Col>
+          <Col xs={24} lg={12}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <Title level={5} style={{ margin: 0 }}>
+                Recent Orders
+              </Title>
+              <Link href="/orders">
+                <Button type="link" size="small">
+                  View all
+                </Button>
+              </Link>
+            </div>
+            <Table
+              rowKey="id"
+              columns={recentOrderColumns}
+              dataSource={overview?.recent_orders ?? []}
+              loading={isLoading}
+              pagination={false}
+              size="small"
+            />
+          </Col>
+        </Row>
+      )}
     </div>
   );
 }

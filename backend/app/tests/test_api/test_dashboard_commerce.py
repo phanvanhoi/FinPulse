@@ -1,0 +1,117 @@
+import io
+import uuid
+from decimal import Decimal
+
+import pytest
+from httpx import AsyncClient
+
+
+async def _setup_seller_with_paid_order(client: AsyncClient) -> str:
+    resp = await client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": f"seller-{uuid.uuid4().hex[:8]}@example.com",
+            "password": "securepassword123",
+            "name": "Seller",
+            "organization_name": "Dashboard Shop",
+        },
+    )
+    token = resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    products = (await client.get("/api/v1/products")).json()["products"]
+    product = products[0]
+    variant_id = product["variants"][0]["id"]
+
+    campaign = (
+        await client.post(
+            "/api/v1/campaigns",
+            headers=headers,
+            json={
+                "title": "Dashboard Campaign",
+                "product_id": product["id"],
+                "retail_price": 25.00,
+                "variant_prices": [{"variant_id": variant_id, "price": 25.00}],
+            },
+        )
+    ).json()
+
+    png = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+        b"\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+    await client.post(
+        f"/api/v1/campaigns/{campaign['id']}/design",
+        headers=headers,
+        files={"file": ("design.png", io.BytesIO(png), "image/png")},
+    )
+    published = (await client.post(f"/api/v1/campaigns/{campaign['id']}/publish", headers=headers)).json()
+    slug = published["slug"]
+
+    session_id = f"session-{uuid.uuid4().hex[:8]}"
+    await client.post(
+        "/api/v1/cart/add",
+        json={
+            "campaign_slug": slug,
+            "session_id": session_id,
+            "items": [{"variant_id": variant_id, "quantity": 2}],
+        },
+    )
+    checkout = await client.post(
+        f"/api/v1/cart/{slug}/checkout",
+        json={
+            "session_id": session_id,
+            "customer_email": "buyer@example.com",
+            "customer_name": "Buyer",
+            "shipping_address": "123 Main St",
+        },
+    )
+    order_id = checkout.json()["order_id"]
+    await client.post(f"/api/v1/orders/complete?order_id={order_id}&mock=true")
+
+    return token
+
+
+@pytest.mark.asyncio
+async def test_commerce_overview_empty(client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": f"new-{uuid.uuid4().hex[:8]}@example.com",
+            "password": "securepassword123",
+            "name": "New Seller",
+            "organization_name": "Empty Shop",
+        },
+    )
+    token = resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    overview = await client.get("/api/v1/dashboard/commerce-overview", headers=headers)
+    assert overview.status_code == 200
+    data = overview.json()
+    assert Decimal(str(data["kpis"]["revenue"])) == Decimal("0")
+    assert data["kpis"]["orders_count"] == 0
+    assert data["kpis"]["live_campaigns"] == 0
+    assert data["setup"]["has_live_campaign"] is False
+    assert data["setup"]["has_paid_order"] is False
+    assert data["store"] is not None
+
+
+@pytest.mark.asyncio
+async def test_commerce_overview_with_order(client: AsyncClient):
+    token = await _setup_seller_with_paid_order(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    overview = await client.get("/api/v1/dashboard/commerce-overview", headers=headers)
+    assert overview.status_code == 200
+    data = overview.json()
+
+    assert Decimal(str(data["kpis"]["revenue"])) == Decimal("50.00")
+    assert data["kpis"]["orders_count"] >= 1
+    assert data["kpis"]["units_sold"] == 2
+    assert data["kpis"]["live_campaigns"] >= 1
+    assert data["setup"]["has_live_campaign"] is True
+    assert data["setup"]["has_paid_order"] is True
+    assert len(data["recent_orders"]) >= 1
+    assert len(data["top_campaigns"]) >= 1
