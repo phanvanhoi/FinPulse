@@ -16,6 +16,7 @@ import type { OrdersByStatus } from "@/lib/types";
 interface OrdersStatusChartProps {
   data: OrdersByStatus[];
   loading?: boolean;
+  compact?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -25,7 +26,7 @@ const STATUS_COLORS: Record<string, string> = {
   refunded: "#8c8c8c",
 };
 
-export default function OrdersStatusChart({ data, loading = false }: OrdersStatusChartProps) {
+export default function OrdersStatusChart({ data, loading = false, compact = false }: OrdersStatusChartProps) {
   const chartData = data.map((row) => ({
     status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
     count: row.count,
@@ -39,7 +40,7 @@ export default function OrdersStatusChart({ data, loading = false }: OrdersStatu
       {!hasOrders && !loading ? (
         <Empty description="No orders in this period" style={{ padding: "48px 0" }} />
       ) : (
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={compact ? 220 : 280}>
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="status" />

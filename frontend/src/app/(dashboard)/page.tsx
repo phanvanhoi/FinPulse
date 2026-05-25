@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { Alert, Button, Col, Row, Segmented, Space, Table, Tag, Typography } from "antd";
-import { LinkOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Alert, Button, Col, Grid, Row, Segmented, Space, Table, Tag, Typography, message } from "antd";
+import { DownloadOutlined, LinkOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import MetricCard from "@/components/dashboard/MetricCard";
 import SetupChecklist from "@/components/dashboard/SetupChecklist";
@@ -13,6 +13,8 @@ import { useAuthStore } from "@/stores/auth-store";
 import type { RecentOrderSummary, TopCampaignSummary } from "@/lib/types";
 import CommerceRevenueChart from "@/components/charts/CommerceRevenueChart";
 import OrdersStatusChart from "@/components/charts/OrdersStatusChart";
+import { downloadCsv } from "@/lib/export-csv";
+import { formatPeriodRange } from "@/lib/format-date";
 
 const { Title, Text } = Typography;
 
@@ -29,10 +31,31 @@ const campaignStatusColors: Record<string, string> = {
   ended: "red",
 };
 
+function exportRecentOrders(orders: RecentOrderSummary[]) {
+  if (orders.length === 0) {
+    message.info("No orders to export");
+    return;
+  }
+  downloadCsv(
+    `orders-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["Email", "Campaign", "Total", "Status", "Date"],
+    orders.map((o) => [
+      o.customer_email,
+      o.campaign_title ?? "",
+      Number(o.total).toFixed(2),
+      o.status,
+      new Date(o.created_at).toISOString(),
+    ])
+  );
+  message.success("Orders exported");
+}
+
 export default function DashboardPage() {
   const { user, fetchUser } = useAuthStore();
   const { overview, isLoading, error, periodDays, setPeriodDays, fetchCommerceOverview } =
     useCommerceDashboardStore();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
 
   useEffect(() => {
     fetchUser();
@@ -41,6 +64,10 @@ export default function DashboardPage() {
 
   const kpis = overview?.kpis;
   const hasSales = (kpis?.orders_count ?? 0) > 0 || (kpis?.revenue ?? 0) > 0;
+  const periodLabel =
+    overview?.period_start && overview?.period_end
+      ? formatPeriodRange(overview.period_start, overview.period_end)
+      : null;
 
   const topCampaignColumns: ColumnsType<TopCampaignSummary> = [
     {
@@ -86,6 +113,7 @@ export default function DashboardPage() {
       title: "Customer",
       dataIndex: "customer_email",
       key: "customer_email",
+      ellipsis: true,
       render: (email: string, record) => (
         <div>
           <Text>{email}</Text>
@@ -104,50 +132,70 @@ export default function DashboardPage() {
       title: "Total",
       dataIndex: "total",
       key: "total",
+      width: 90,
       render: (v: number) => `$${Number(v).toFixed(2)}`,
     },
     {
       title: "Status",
       dataIndex: "status",
       key: "status",
+      width: 90,
       render: (status: string) => <Tag color={statusColors[status]}>{status.toUpperCase()}</Tag>,
     },
     {
       title: "Date",
       dataIndex: "created_at",
       key: "created_at",
+      width: 100,
       render: (v: string) => new Date(v).toLocaleDateString(),
     },
   ];
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: isMobile ? "column" : "row",
+          justifyContent: "space-between",
+          alignItems: isMobile ? "stretch" : "flex-start",
+          gap: 16,
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <Title level={3} style={{ marginBottom: 4 }}>
+          <Title level={isMobile ? 4 : 3} style={{ marginBottom: 4 }}>
             {user?.name ? `Welcome back, ${user.name}` : "Dashboard"}
           </Title>
-          <Text type="secondary">
+          <Text type="secondary" style={{ display: "block" }}>
             {overview?.store?.name ? `${overview.store.name} — seller overview` : "Your store at a glance"}
           </Text>
+          {periodLabel && (
+            <Text type="secondary" style={{ display: "block", fontSize: 12, marginTop: 4 }}>
+              Period: {periodLabel}
+            </Text>
+          )}
         </div>
-        <Space wrap>
+        <Space wrap direction={isMobile ? "vertical" : "horizontal"} style={{ width: isMobile ? "100%" : "auto" }}>
           <Segmented
+            block={isMobile}
             options={[
-              { label: "7 days", value: 7 },
-              { label: "30 days", value: 30 },
-              { label: "90 days", value: 90 },
+              { label: "7d", value: 7 },
+              { label: "30d", value: 30 },
+              { label: "90d", value: 90 },
             ]}
             value={periodDays}
             onChange={(v) => setPeriodDays(v as number)}
           />
           {overview?.store && (
-            <a href={overview.store.storefront_url} target="_blank" rel="noreferrer">
-              <Button icon={<LinkOutlined />}>View Storefront</Button>
+            <a href={overview.store.storefront_url} target="_blank" rel="noreferrer" style={{ width: isMobile ? "100%" : "auto" }}>
+              <Button icon={<LinkOutlined />} block={isMobile}>
+                Storefront
+              </Button>
             </a>
           )}
-          <Link href="/campaigns/new">
-            <Button type="primary" icon={<PlusOutlined />}>
+          <Link href="/campaigns/new" style={{ width: isMobile ? "100%" : "auto" }}>
+            <Button type="primary" icon={<PlusOutlined />} block={isMobile}>
               New Campaign
             </Button>
           </Link>
@@ -169,8 +217,8 @@ export default function DashboardPage() {
 
       {overview && <SetupChecklist setup={overview.setup} store={overview.store} />}
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} lg={6}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={12} sm={12} lg={6}>
           <MetricCard
             title="Revenue"
             value={Number(kpis?.revenue ?? 0)}
@@ -180,45 +228,38 @@ export default function DashboardPage() {
             loading={isLoading}
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <MetricCard title="Orders" value={kpis?.orders_count ?? 0} loading={isLoading} />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <MetricCard title="Units Sold" value={kpis?.units_sold ?? 0} loading={isLoading} />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <MetricCard title="Live Campaigns" value={kpis?.live_campaigns ?? 0} loading={isLoading} />
         </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <MetricCard
-            title="Pending Orders"
-            value={kpis?.orders_pending ?? 0}
-            loading={isLoading}
-          />
+        <Col xs={12} sm={12} lg={6}>
+          <MetricCard title="Pending" value={kpis?.orders_pending ?? 0} loading={isLoading} />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <MetricCard
-            title="Avg Order Value"
+            title="Avg Order"
             value={Number(kpis?.avg_order_value ?? 0)}
             prefix="$"
             precision={2}
             loading={isLoading}
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <MetricCard title="Draft Campaigns" value={kpis?.draft_campaigns ?? 0} loading={isLoading} />
         </Col>
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={12}>
-          <CommerceRevenueChart data={overview?.revenue_by_day ?? []} loading={isLoading} />
+          <CommerceRevenueChart data={overview?.revenue_by_day ?? []} loading={isLoading} compact={isMobile} />
         </Col>
         <Col xs={24} lg={12}>
-          <OrdersStatusChart data={overview?.orders_by_status ?? []} loading={isLoading} />
+          <OrdersStatusChart data={overview?.orders_by_status ?? []} loading={isLoading} compact={isMobile} />
         </Col>
       </Row>
 
@@ -237,18 +278,38 @@ export default function DashboardPage() {
               loading={isLoading}
               pagination={false}
               size="small"
+              scroll={{ x: 480 }}
             />
           </Col>
           <Col xs={24} lg={12}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 12,
+                flexWrap: "wrap",
+                gap: 8,
+              }}
+            >
               <Title level={5} style={{ margin: 0 }}>
                 Recent Orders
               </Title>
-              <Link href="/orders">
-                <Button type="link" size="small">
-                  View all
+              <Space>
+                <Button
+                  size="small"
+                  icon={<DownloadOutlined />}
+                  onClick={() => exportRecentOrders(overview?.recent_orders ?? [])}
+                  disabled={!overview?.recent_orders?.length}
+                >
+                  Export CSV
                 </Button>
-              </Link>
+                <Link href="/orders">
+                  <Button type="link" size="small">
+                    View all
+                  </Button>
+                </Link>
+              </Space>
             </div>
             <Table
               rowKey="id"
@@ -257,6 +318,7 @@ export default function DashboardPage() {
               loading={isLoading}
               pagination={false}
               size="small"
+              scroll={{ x: 520 }}
             />
           </Col>
         </Row>

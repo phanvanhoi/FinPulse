@@ -15,6 +15,7 @@ import type { RevenueByDay } from "@/lib/types";
 interface CommerceRevenueChartProps {
   data: RevenueByDay[];
   loading?: boolean;
+  compact?: boolean;
 }
 
 function formatDateLabel(dateStr: string) {
@@ -22,7 +23,7 @@ function formatDateLabel(dateStr: string) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export default function CommerceRevenueChart({ data, loading = false }: CommerceRevenueChartProps) {
+export default function CommerceRevenueChart({ data, loading = false, compact = false }: CommerceRevenueChartProps) {
   const chartData = data.map((row) => ({
     date: formatDateLabel(row.date),
     revenue: Number(row.revenue),
@@ -36,10 +37,14 @@ export default function CommerceRevenueChart({ data, loading = false }: Commerce
       {!hasRevenue && !loading ? (
         <Empty description="No paid orders in this period" style={{ padding: "48px 0" }} />
       ) : (
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={compact ? 220 : 280}>
           <AreaChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 10 }}
+              interval={compact ? Math.max(0, Math.floor(chartData.length / 5)) : "preserveStartEnd"}
+            />
             <YAxis tickFormatter={(v) => `$${v}`} width={56} />
             <Tooltip
               formatter={(value, name) =>

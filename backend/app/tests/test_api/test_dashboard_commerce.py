@@ -1,5 +1,6 @@
 import io
 import uuid
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -115,3 +116,26 @@ async def test_commerce_overview_with_order(client: AsyncClient):
     assert data["setup"]["has_paid_order"] is True
     assert len(data["recent_orders"]) >= 1
     assert len(data["top_campaigns"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_commerce_overview_period_days(client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": f"period-{uuid.uuid4().hex[:8]}@example.com",
+            "password": "securepassword123",
+            "name": "Seller",
+            "organization_name": "Period Shop",
+        },
+    )
+    token = resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    overview = await client.get("/api/v1/dashboard/commerce-overview?period_days=7", headers=headers)
+    assert overview.status_code == 200
+    data = overview.json()
+    start = date.fromisoformat(data["period_start"])
+    end = date.fromisoformat(data["period_end"])
+    assert (end - start).days == 6
+    assert len(data["revenue_by_day"]) == 7

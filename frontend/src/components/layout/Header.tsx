@@ -1,12 +1,17 @@
 "use client";
 
-import { Layout, Button, Dropdown, Avatar, Badge, Space } from "antd";
-import { BellOutlined, UserOutlined, LogoutOutlined } from "@ant-design/icons";
+import { Layout, Button, Dropdown, Avatar, Space } from "antd";
+import { BellOutlined, LogoutOutlined, MenuOutlined, UserOutlined } from "@ant-design/icons";
 import { useAuthStore } from "@/stores/auth-store";
 
 const { Header: AntHeader } = Layout;
 
-export default function Header() {
+interface HeaderProps {
+  showMenuButton?: boolean;
+  onMenuClick?: () => void;
+}
+
+export default function Header({ showMenuButton = false, onMenuClick }: HeaderProps) {
   const { user, logout } = useAuthStore();
 
   const userMenuItems = [
@@ -20,22 +25,30 @@ export default function Header() {
       style={{
         background: "#fff",
         borderBottom: "1px solid #f0f0f0",
-        padding: "0 24px",
+        padding: showMenuButton ? "0 12px" : "0 24px",
         display: "flex",
         alignItems: "center",
-        justifyContent: "flex-end",
+        justifyContent: "space-between",
         gap: 16,
+        position: "sticky",
+        top: 0,
+        zIndex: 99,
       }}
     >
-      <Badge count={3} size="small">
+      {showMenuButton ? (
+        <Button type="text" icon={<MenuOutlined />} onClick={onMenuClick} aria-label="Open menu" />
+      ) : (
+        <span />
+      )}
+      <Space>
         <Button type="text" icon={<BellOutlined />} />
-      </Badge>
-      <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-        <Space style={{ cursor: "pointer" }}>
-          <Avatar size="small" icon={<UserOutlined />} />
-          <span>{user?.name || "User"}</span>
-        </Space>
-      </Dropdown>
+        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+          <Space style={{ cursor: "pointer" }}>
+            <Avatar size="small" icon={<UserOutlined />} />
+            <span>{user?.name || "User"}</span>
+          </Space>
+        </Dropdown>
+      </Space>
     </AntHeader>
   );
 }
