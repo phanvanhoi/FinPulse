@@ -42,12 +42,18 @@ class Settings(BaseSettings):
     LITELLM_API_KEY: str = ""
     LLM_MODEL: str = "claude-sonnet-4-20250514"
 
-    # Stripe
+    # Stripe (cards: Visa, Mastercard, Amex, …)
     STRIPE_SECRET_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
     STRIPE_PRICE_STARTER: str = ""
     STRIPE_PRICE_GROWTH: str = ""
     STRIPE_PRICE_PRO: str = ""
+
+    # PayPal
+    PAYPAL_CLIENT_ID: str = ""
+    PAYPAL_CLIENT_SECRET: str = ""
+    PAYPAL_MODE: str = "sandbox"  # sandbox | live
+    PAYPAL_WEBHOOK_ID: str = ""
 
     # SendGrid
     SENDGRID_API_KEY: str = ""

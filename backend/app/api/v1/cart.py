@@ -48,4 +48,8 @@ async def save_cart_email(campaign_slug: str, payload: SaveEmailRequest, db: DB)
 @router.post("/{campaign_slug}/checkout", response_model=CheckoutResponse)
 async def checkout(campaign_slug: str, payload: CheckoutRequest, db: DB):
     order, checkout_url = await checkout_service.create_checkout(db, payload, campaign_slug)
-    return CheckoutResponse(checkout_url=checkout_url, order_id=order.id)
+    return CheckoutResponse(
+        checkout_url=checkout_url,
+        order_id=order.id,
+        payment_provider=order.payment_provider or "mock",
+    )

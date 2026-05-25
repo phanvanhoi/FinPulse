@@ -52,6 +52,8 @@ class Order(Base, UUIDMixin, TimestampMixin):
     )
     stripe_session_id: Mapped[str | None] = mapped_column(String(255))
     stripe_payment_intent_id: Mapped[str | None] = mapped_column(String(255))
+    payment_provider: Mapped[str | None] = mapped_column(String(20))
+    paypal_order_id: Mapped[str | None] = mapped_column(String(255), index=True)
     recovery_email_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     fulfillment_provider: Mapped[str | None] = mapped_column(String(50))
     external_order_id: Mapped[str | None] = mapped_column(String(100), index=True)

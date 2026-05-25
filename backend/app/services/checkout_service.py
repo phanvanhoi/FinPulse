@@ -18,6 +18,12 @@ from app.services import cart_service
 
 
 async def create_checkout(db: AsyncSession, payload: CheckoutRequest, campaign_slug: str) -> tuple[Order, str]:
+    config = get_payment_config()
+    if payload.payment_method == "card" and not config["card_enabled"]:
+        raise BadRequestError("Card payments are not configured on this server")
+    if payload.payment_method == "paypal" and not config["paypal_enabled"]:
+        raise BadRequestError("PayPal is not configured on this server")
+
     campaign_result = await db.execute(
         select(SalesCampaign)
         .where(SalesCampaign.slug == campaign_slug, SalesCampaign.status == CampaignStatus.LIVE)
@@ -80,23 +86,56 @@ async def create_checkout(db: AsyncSession, payload: CheckoutRequest, campaign_s
             )
         )
 
-    checkout_url = await _create_stripe_session(order, campaign)
+    checkout_url, payment_provider = await _create_payment_session(order, campaign, payload.payment_method)
+    order.payment_provider = payment_provider
     await db.flush()
     return order, checkout_url
 
 
-async def _create_stripe_session(order: Order, campaign: SalesCampaign) -> str:
+async def _create_payment_session(order: Order, campaign: SalesCampaign, payment_method: str) -> tuple[str, str]:
+    if payment_method == "paypal":
+        return await _create_paypal_session(order, campaign)
+    return await _create_stripe_session(order, campaign)
+
+
+async def _create_paypal_session(order: Order, campaign: SalesCampaign) -> tuple[str, str]:
+    if not settings.PAYPAL_CLIENT_ID or not settings.PAYPAL_CLIENT_SECRET:
+        raise BadRequestError("PayPal is not configured on this server")
+
+    from app.integrations.paypal.client import PayPalClient
+
+    return_url = (
+        f"{settings.FRONTEND_URL.rstrip('/')}/checkout/success"
+        f"?order_id={order.id}&provider=paypal"
+    )
+    cancel_url = f"{settings.FRONTEND_URL.rstrip('/')}/campaign/{campaign.slug}"
+
+    client = PayPalClient()
+    paypal_order_id, approve_url = await client.create_checkout_order(
+        amount=order.total,
+        currency="USD",
+        return_url=return_url,
+        cancel_url=cancel_url,
+        reference_id=str(order.id),
+        description=f"{campaign.title} - Order",
+    )
+    order.paypal_order_id = paypal_order_id
+    return approve_url, "paypal"
+
+
+async def _create_stripe_session(order: Order, campaign: SalesCampaign) -> tuple[str, str]:
     success_url = f"{settings.FRONTEND_URL}/checkout/success?order_id={order.id}"
     cancel_url = f"{settings.FRONTEND_URL}/campaign/{campaign.slug}"
 
     if not settings.STRIPE_SECRET_KEY:
-        return f"{success_url}&mock=true"
+        return f"{success_url}&mock=true", "mock"
 
     import stripe
 
     stripe.api_key = settings.STRIPE_SECRET_KEY
     session = stripe.checkout.Session.create(
         mode="payment",
+        payment_method_types=["card"],
         customer_email=order.customer_email,
         line_items=[
             {
@@ -113,7 +152,54 @@ async def _create_stripe_session(order: Order, campaign: SalesCampaign) -> str:
         metadata={"order_id": str(order.id)},
     )
     order.stripe_session_id = session.id
-    return session.url
+    return session.url, "stripe"
+
+
+async def capture_paypal_order(db: AsyncSession, order_id: uuid.UUID, paypal_order_id: str) -> Order:
+    result = await db.execute(
+        select(Order).where(Order.id == order_id).options(selectinload(Order.items))
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise NotFoundError("Order not found")
+    if order.status == OrderStatus.PAID:
+        return order
+    if order.payment_provider != "paypal":
+        raise BadRequestError("Order was not created for PayPal checkout")
+    if order.paypal_order_id and order.paypal_order_id != paypal_order_id:
+        raise BadRequestError("PayPal order ID mismatch")
+
+    from app.integrations.paypal.client import PayPalClient
+    from app.integrations.paypal.exceptions import PayPalAPIError
+
+    client = PayPalClient()
+    try:
+        capture_result = await client.capture_order(paypal_order_id)
+    except PayPalAPIError as exc:
+        raise BadRequestError(str(exc)) from exc
+
+    status = capture_result.get("status", "")
+    if status != "COMPLETED":
+        raise BadRequestError(f"PayPal payment not completed (status: {status})")
+
+    order.paypal_order_id = paypal_order_id
+    return await complete_order(db, order_id, mock=False)
+
+
+def get_payment_config() -> dict:
+    card_enabled = bool(settings.STRIPE_SECRET_KEY)
+    paypal_enabled = bool(settings.PAYPAL_CLIENT_ID and settings.PAYPAL_CLIENT_SECRET)
+    return {
+        "card_enabled": card_enabled,
+        "paypal_enabled": paypal_enabled,
+        "mock_enabled": settings.APP_ENV != "production" and not card_enabled and not paypal_enabled,
+        "stripe_mode": (
+            "live"
+            if settings.STRIPE_SECRET_KEY.startswith("sk_live_")
+            else ("test" if settings.STRIPE_SECRET_KEY else "disabled")
+        ),
+        "paypal_mode": settings.PAYPAL_MODE,
+    }
 
 
 async def complete_order(db: AsyncSession, order_id: uuid.UUID, mock: bool = False) -> Order:
@@ -126,7 +212,7 @@ async def complete_order(db: AsyncSession, order_id: uuid.UUID, mock: bool = Fal
     if order.status == OrderStatus.PAID:
         return order
 
-    if not mock and not settings.STRIPE_SECRET_KEY:
+    if not mock and not settings.STRIPE_SECRET_KEY and order.payment_provider != "paypal":
         raise BadRequestError("Payment not configured")
 
     order.status = OrderStatus.PAID

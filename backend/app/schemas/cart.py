@@ -59,8 +59,10 @@ class CheckoutRequest(BaseModel):
     shipping: ShippingAddressInput
     shipping_address: str | None = None
     tip_percent: float | None = Field(default=None, ge=0, le=100)
+    payment_method: str = Field(default="card", pattern="^(card|paypal)$")
 
 
 class CheckoutResponse(BaseModel):
     checkout_url: str
     order_id: uuid.UUID
+    payment_provider: str

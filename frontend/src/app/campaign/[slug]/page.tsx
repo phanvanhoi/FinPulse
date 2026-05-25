@@ -28,6 +28,12 @@ import type { PublicCampaign } from "@/lib/types/campaign";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const { Title, Text, Paragraph } = Typography;
 
+interface PaymentConfig {
+  card_enabled: boolean;
+  paypal_enabled: boolean;
+  mock_enabled: boolean;
+}
+
 export default function PublicCampaignPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -35,6 +41,7 @@ export default function PublicCampaignPage() {
   const [loading, setLoading] = useState(true);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null);
   const [form] = Form.useForm();
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -48,6 +55,11 @@ export default function PublicCampaignPage() {
       })
       .catch(() => message.error("Campaign not found"))
       .finally(() => setLoading(false));
+
+    axios
+      .get<PaymentConfig>(`${API_URL}/api/v1/payments/config`)
+      .then(({ data }) => setPaymentConfig(data))
+      .catch(() => setPaymentConfig({ card_enabled: false, paypal_enabled: false, mock_enabled: true }));
   }, [slug]);
 
   const selectedPrice = campaign?.variants.find((v) => v.variant_id === selectedVariant)?.price || 0;
@@ -99,6 +111,7 @@ export default function PublicCampaignPage() {
           phone_number: values.phone,
         },
         tip_percent: values.tip_percent,
+        payment_method: values.payment_method || "card",
       });
 
       if (data.checkout_url.includes("mock=true")) {
@@ -231,6 +244,28 @@ export default function PublicCampaignPage() {
                 ))}
               </Radio.Group>
             </Form.Item>
+          )}
+          {paymentConfig && (paymentConfig.card_enabled || paymentConfig.paypal_enabled) && (
+            <Form.Item
+              label="Payment method"
+              name="payment_method"
+              initialValue={paymentConfig.card_enabled ? "card" : "paypal"}
+              rules={[{ required: true }]}
+            >
+              <Radio.Group>
+                {paymentConfig.card_enabled && (
+                  <Radio value="card">Credit / Debit Card (Visa, Mastercard, Amex)</Radio>
+                )}
+                {paymentConfig.paypal_enabled && (
+                  <Radio value="paypal">PayPal</Radio>
+                )}
+              </Radio.Group>
+            </Form.Item>
+          )}
+          {paymentConfig?.mock_enabled && !paymentConfig.card_enabled && !paymentConfig.paypal_enabled && (
+            <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
+              Test mode — no payment gateway configured on server.
+            </Text>
           )}
           <Divider />
           <Space style={{ width: "100%", justifyContent: "space-between" }}>

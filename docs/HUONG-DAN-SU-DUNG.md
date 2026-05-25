@@ -254,16 +254,86 @@ DATABASE_URL_SYNC=postgresql://finpulse:mat_khau@db:5432/finpulse
 | `#`   | `%23`  |
 
 
-### 8.3 Thanh toán Stripe (tuỳ chọn)
+### 8.3 Thanh toán — Thẻ (Visa / Mastercard / Amex) qua Stripe
+
+**Visa không phải cổng riêng** — thẻ Visa, Mastercard, Amex được xử lý qua **Stripe Checkout**.
+
+#### Bước 1: Tạo tài khoản Stripe
+
+1. Đăng ký tại [https://dashboard.stripe.com](https://dashboard.stripe.com)
+2. Bật **Payments** → **Checkout**
+3. Lấy API keys: **Developers → API keys**
+
+#### Bước 2: Cấu hình `.env` trên VPS
 
 ```env
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-Không cấu hình Stripe → checkout chạy **mock** (test, không thu tiền thật).
+- `sk_test_...` — môi trường test (thẻ test Stripe)
+- `sk_live_...` — production (thu tiền thật)
 
-### 8.4 Email SendGrid (tuỳ chọn)
+#### Bước 3: Webhook Stripe (bắt buộc cho production)
+
+1. Stripe Dashboard → **Developers → Webhooks → Add endpoint**
+2. URL: `https://YOUR_DOMAIN/api/v1/orders/webhooks/stripe`
+3. Event: `checkout.session.completed`
+4. Copy **Signing secret** → `STRIPE_WEBHOOK_SECRET` trong `.env`
+
+#### Bước 4: Rebuild backend
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build backend
+```
+
+Khách checkout sẽ thấy tuỳ chọn **Credit / Debit Card (Visa, Mastercard, Amex)**.
+
+---
+
+### 8.4 Thanh toán PayPal
+
+#### Bước 1: Tạo app PayPal Developer
+
+1. Đăng ký [https://developer.paypal.com](https://developer.paypal.com)
+2. **Dashboard → Apps & Credentials → Create App**
+3. Copy **Client ID** và **Secret**
+
+#### Bước 2: Cấu hình `.env`
+
+```env
+# Sandbox (test)
+PAYPAL_CLIENT_ID=your_sandbox_client_id
+PAYPAL_CLIENT_SECRET=your_sandbox_secret
+PAYPAL_MODE=sandbox
+
+# Production (khi go-live)
+PAYPAL_MODE=live
+```
+
+#### Bước 3: Rebuild backend + migration
+
+```bash
+git pull origin master
+docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+docker compose -f docker-compose.prod.yml up -d --build backend
+```
+
+Khách checkout sẽ thấy tuỳ chọn **PayPal** — sau khi approve trên PayPal, đơn tự capture và chuyển sang **paid**.
+
+#### Lưu ý PayPal
+
+- Sandbox: dùng tài khoản test PayPal Developer để thử
+- Live: app phải được PayPal duyệt trên business account
+- Có thể bật **cả Stripe và PayPal** cùng lúc — khách chọn khi checkout
+
+---
+
+### 8.5 Không cấu hình cổng nào
+
+Nếu thiếu cả `STRIPE_SECRET_KEY` và `PAYPAL_CLIENT_ID` → checkout chạy **mock** (chỉ dev/test, **không thu tiền thật**). Production phải cấu hình ít nhất một cổng.
+
+### 8.6 Email SendGrid (tuỳ chọn)
 
 ```env
 SENDGRID_API_KEY=SG....
@@ -272,7 +342,7 @@ FROM_EMAIL=noreply@yourdomain.com
 
 Dùng cho: xác nhận đơn, abandoned cart email.
 
-### 8.5 Performance VPS nhỏ (2GB RAM)
+### 8.7 Performance VPS nhỏ (2GB RAM)
 
 ```env
 UVICORN_WORKERS=1

@@ -83,6 +83,16 @@ async def complete_checkout(
     return {"status": order.status.value, "order_id": str(order.id)}
 
 
+@router.post("/paypal/capture")
+async def capture_paypal_checkout(
+    db: DB,
+    order_id: uuid.UUID = Query(...),
+    token: str = Query(..., description="PayPal order ID returned after approval"),
+):
+    order = await checkout_service.capture_paypal_order(db, order_id, token)
+    return {"status": order.status.value, "order_id": str(order.id)}
+
+
 @router.post("/{order_id}/retry-fulfillment")
 async def retry_fulfillment(order_id: uuid.UUID, current_user: CurrentUser, db: DB):
     from app.models.order import Order

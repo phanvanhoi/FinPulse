@@ -15,6 +15,8 @@ export default function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
   const isMock = searchParams.get("mock") === "true";
+  const isPayPal = searchParams.get("provider") === "paypal";
+  const paypalToken = searchParams.get("token");
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const purchaseTracked = useRef(false);
@@ -28,6 +30,10 @@ export default function CheckoutSuccessContent() {
     const complete = async () => {
       if (isMock) {
         await axios.post(`${API_URL}/api/v1/orders/complete?order_id=${orderId}&mock=true`);
+      } else if (isPayPal && paypalToken) {
+        await axios.post(
+          `${API_URL}/api/v1/orders/paypal/capture?order_id=${orderId}&token=${encodeURIComponent(paypalToken)}`
+        );
       }
       const { data } = await axios.get<Order>(`${API_URL}/api/v1/orders/public/${orderId}`);
       setOrder(data);
@@ -35,7 +41,7 @@ export default function CheckoutSuccessContent() {
     };
 
     complete().catch(() => setLoading(false));
-  }, [orderId, isMock]);
+  }, [orderId, isMock, isPayPal, paypalToken]);
 
   useEffect(() => {
     if (order && order.status === "paid" && !purchaseTracked.current) {
