@@ -6,14 +6,16 @@ FinPulse là nền tảng bán hàng in ấn / print-on-demand (POD) kiểu SocP
 
 ## 1. Truy cập hệ thống
 
-| Trang | URL (thay bằng domain/IP của bạn) |
-|-------|-----------------------------------|
-| Trang chủ / Dashboard | `http://YOUR_DOMAIN/` |
-| Đăng nhập | `http://YOUR_DOMAIN/login` |
-| Đăng ký | `http://YOUR_DOMAIN/signup` |
-| Storefront (công khai) | `http://YOUR_DOMAIN/store/{slug-cua-hang}` |
+
+| Trang                   | URL (thay bằng domain/IP của bạn)             |
+| ----------------------- | --------------------------------------------- |
+| Trang chủ / Dashboard   | `http://YOUR_DOMAIN/`                         |
+| Đăng nhập               | `http://YOUR_DOMAIN/login`                    |
+| Đăng ký                 | `http://YOUR_DOMAIN/signup`                   |
+| Storefront (công khai)  | `http://YOUR_DOMAIN/store/{slug-cua-hang}`    |
 | Trang campaign bán hàng | `http://YOUR_DOMAIN/campaign/{slug-campaign}` |
-| Kiểm tra API | `http://YOUR_DOMAIN/health` |
+| Kiểm tra API            | `http://YOUR_DOMAIN/health`                   |
+
 
 **Lưu ý:** Vào `/` khi **chưa đăng nhập** sẽ tự chuyển sang `/login`. Sau khi đăng nhập sẽ vào **Dashboard**.
 
@@ -25,10 +27,10 @@ FinPulse là nền tảng bán hàng in ấn / print-on-demand (POD) kiểu SocP
 
 1. Mở `/signup`
 2. Nhập:
-   - **Email** — email đăng nhập
-   - **Password** — tối thiểu 8 ký tự
-   - **Tên** — tên hiển thị
-   - **Tên cửa hàng / tổ chức** — tên thương hiệu
+  - **Email** — email đăng nhập
+  - **Password** — tối thiểu 8 ký tự
+  - **Tên** — tên hiển thị
+  - **Tên cửa hàng / tổ chức** — tên thương hiệu
 3. Bấm **Create Account**
 
 Hệ thống tự tạo **Organization** và **Store** (cửa hàng) cho bạn.
@@ -49,14 +51,16 @@ Sau khi đăng nhập, bạn vào **Dashboard** (`/`).
 
 ### 3.1 Các chỉ số chính (KPI)
 
-| Chỉ số | Ý nghĩa |
-|--------|---------|
-| **Revenue** | Doanh thu từ đơn đã thanh toán (paid) |
-| **Orders** | Tổng số đơn trong kỳ |
-| **Units Sold** | Số sản phẩm đã bán |
-| **Live Campaigns** | Campaign đang chạy |
-| **Pending Orders** | Đơn chờ thanh toán |
-| **Avg Order** | Giá trị đơn hàng trung bình |
+
+| Chỉ số             | Ý nghĩa                               |
+| ------------------ | ------------------------------------- |
+| **Revenue**        | Doanh thu từ đơn đã thanh toán (paid) |
+| **Orders**         | Tổng số đơn trong kỳ                  |
+| **Units Sold**     | Số sản phẩm đã bán                    |
+| **Live Campaigns** | Campaign đang chạy                    |
+| **Pending Orders** | Đơn chờ thanh toán                    |
+| **Avg Order**      | Giá trị đơn hàng trung bình           |
+
 
 Chọn kỳ xem: **7 ngày / 30 ngày / 90 ngày**.
 
@@ -139,21 +143,25 @@ Hệ thống tự bắn sự kiện: AddToCart, InitiateCheckout, Purchase.
 
 **Campaigns** → **New Campaign** (`/campaigns/new`)
 
-| Bước | Việc cần làm |
-|------|----------------|
-| 1 | Chọn **sản phẩm** (T-shirt, Hoodie, Mug…), đặt **giá bán**, mô tả, thời gian chạy (tuỳ chọn) |
-| 2 | **Upload design** — ảnh thiết kế in lên sản phẩm |
-| 3 | **Publish** — campaign chuyển sang trạng thái **LIVE** |
+
+| Bước | Việc cần làm                                                                                 |
+| ---- | -------------------------------------------------------------------------------------------- |
+| 1    | Chọn **sản phẩm** (T-shirt, Hoodie, Mug…), đặt **giá bán**, mô tả, thời gian chạy (tuỳ chọn) |
+| 2    | **Upload design** — ảnh thiết kế in lên sản phẩm                                             |
+| 3    | **Publish** — campaign chuyển sang trạng thái **LIVE**                                       |
+
 
 ### 5.2 Quản lý campaign
 
 Tại **Campaigns** (`/campaigns`):
 
-| Trạng thái | Hành động |
-|------------|-----------|
-| **Draft** | Bấm **Publish** để lên sóng |
-| **Live** | **View** — mở trang bán; **End** — kết thúc campaign |
-| Theo dõi | Cột **Sold** — số đơn đã bán |
+
+| Trạng thái | Hành động                                            |
+| ---------- | ---------------------------------------------------- |
+| **Draft**  | Bấm **Publish** để lên sóng                          |
+| **Live**   | **View** — mở trang bán; **End** — kết thúc campaign |
+| Theo dõi   | Cột **Sold** — số đơn đã bán                         |
+
 
 ### 5.3 Link chia sẻ
 
@@ -194,14 +202,16 @@ Trang thành công (/checkout/success)
 
 Vào **Orders** (`/orders`).
 
-| Cột | Mô tả |
-|-----|--------|
-| Order | Mã đơn |
-| Campaign | Campaign nguồn |
-| Customer | Email khách |
-| Total | Tổng tiền |
-| Status | pending / paid / failed / refunded |
-| Date | Ngày tạo |
+
+| Cột      | Mô tả                              |
+| -------- | ---------------------------------- |
+| Order    | Mã đơn                             |
+| Campaign | Campaign nguồn                     |
+| Customer | Email khách                        |
+| Total    | Tổng tiền                          |
+| Status   | pending / paid / failed / refunded |
+| Date     | Ngày tạo                           |
+
 
 **Export:**
 
@@ -236,11 +246,13 @@ DATABASE_URL_SYNC=postgresql://finpulse:mat_khau@db:5432/finpulse
 
 **Quan trọng:** Nếu mật khẩu có ký tự đặc biệt, phải **URL-encode** trong `DATABASE_URL`:
 
+
 | Ký tự | Encode |
-|-------|--------|
-| `!` | `%21` |
-| `@` | `%40` |
-| `#` | `%23` |
+| ----- | ------ |
+| `!`   | `%21`  |
+| `@`   | `%40`  |
+| `#`   | `%23`  |
+
 
 ### 8.3 Thanh toán Stripe (tuỳ chọn)
 
@@ -314,30 +326,34 @@ curl -s http://127.0.0.1/health
 
 ## 11. Xử lý lỗi thường gặp
 
-| Triệu chứng | Nguyên nhân | Cách xử lý |
-|-------------|-------------|------------|
-| Signup failed | Backend lỗi hoặc email trùng | Xem `logs backend`; thử email khác hoặc Login |
-| 502 Bad Gateway | Backend/frontend chưa healthy | `docker compose ps`; đợi backend healthy rồi `up -d` |
-| Port 80 không vào được | Nginx chưa chạy | Kiểm tra `nginx` container; mở firewall port 80 |
-| Campaign không hiện trên store | Chưa Publish | Campaign phải status **LIVE** |
-| Không nhận email | Chưa cấu hình SendGrid | Thêm `SENDGRID_API_KEY` trong `.env` |
-| Build frontend treo lâu | VPS thiếu RAM | Thêm swap 2GB; chỉ rebuild backend khi không cần FE |
-| Backend unhealthy | Lỗi code / DB / deps | `logs backend --tail=50`; `git pull` + rebuild |
+
+| Triệu chứng                    | Nguyên nhân                   | Cách xử lý                                           |
+| ------------------------------ | ----------------------------- | ---------------------------------------------------- |
+| Signup failed                  | Backend lỗi hoặc email trùng  | Xem `logs backend`; thử email khác hoặc Login        |
+| 502 Bad Gateway                | Backend/frontend chưa healthy | `docker compose ps`; đợi backend healthy rồi `up -d` |
+| Port 80 không vào được         | Nginx chưa chạy               | Kiểm tra `nginx` container; mở firewall port 80      |
+| Campaign không hiện trên store | Chưa Publish                  | Campaign phải status **LIVE**                        |
+| Không nhận email               | Chưa cấu hình SendGrid        | Thêm `SENDGRID_API_KEY` trong `.env`                 |
+| Build frontend treo lâu        | VPS thiếu RAM                 | Thêm swap 2GB; chỉ rebuild backend khi không cần FE  |
+| Backend unhealthy              | Lỗi code / DB / deps          | `logs backend --tail=50`; `git pull` + rebuild       |
+
 
 ---
 
 ## 12. Menu hệ thống
 
-| Menu | Chức năng |
-|------|-----------|
-| **Dashboard** | Tổng quan KPI, biểu đồ, insights |
-| **Finance** | Báo cáo tài chính (mở rộng) |
-| **Marketing** | Hiệu suất quảng cáo (mở rộng) |
-| **AI Insights** | Gợi ý từ dữ liệu cửa hàng |
-| **Campaigns** | Tạo / quản lý campaign |
-| **Orders** | Danh sách đơn hàng |
-| **Storefront** | Cấu hình cửa hàng |
-| **Connections** | Kết nối dịch vụ bên thứ 3 |
+
+| Menu            | Chức năng                        |
+| --------------- | -------------------------------- |
+| **Dashboard**   | Tổng quan KPI, biểu đồ, insights |
+| **Finance**     | Báo cáo tài chính (mở rộng)      |
+| **Marketing**   | Hiệu suất quảng cáo (mở rộng)    |
+| **AI Insights** | Gợi ý từ dữ liệu cửa hàng        |
+| **Campaigns**   | Tạo / quản lý campaign           |
+| **Orders**      | Danh sách đơn hàng               |
+| **Storefront**  | Cấu hình cửa hàng                |
+| **Connections** | Kết nối dịch vụ bên thứ 3        |
+
 
 ---
 
