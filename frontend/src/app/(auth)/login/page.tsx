@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button, Card, Form, Input, Typography, message } from "antd";
 import { MailOutlined, LockOutlined } from "@ant-design/icons";
 import { useAuthStore } from "@/stores/auth-store";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 const { Title, Text } = Typography;
 
@@ -19,8 +20,8 @@ export default function LoginPage() {
     try {
       await login(values.email, values.password);
       router.push("/");
-    } catch {
-      message.error("Invalid email or password");
+    } catch (err) {
+      message.error(getApiErrorMessage(err, "Invalid email or password"));
     } finally {
       setLoading(false);
     }

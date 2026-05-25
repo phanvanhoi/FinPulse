@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button, Card, Form, Input, Typography, message } from "antd";
 import { MailOutlined, LockOutlined, UserOutlined, BankOutlined } from "@ant-design/icons";
 import { useAuthStore } from "@/stores/auth-store";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 const { Title, Text } = Typography;
 
@@ -25,8 +26,8 @@ export default function SignupPage() {
       await signup(values.email, values.password, values.name, values.organization_name);
       message.success("Account created successfully!");
       router.push("/");
-    } catch {
-      message.error("Signup failed. Email may already be registered.");
+    } catch (err) {
+      message.error(getApiErrorMessage(err, "Signup failed. Please try again."));
     } finally {
       setLoading(false);
     }
