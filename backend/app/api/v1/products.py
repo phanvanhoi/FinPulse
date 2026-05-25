@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from app.dependencies import DB
 from app.schemas.product import ProductListResponse, ProductResponse
@@ -8,6 +8,9 @@ router = APIRouter()
 
 
 @router.get("", response_model=ProductListResponse)
-async def list_products(db: DB):
-    products = await catalog_service.list_catalog(db)
+async def list_products(
+    db: DB,
+    fulfillment_provider: str | None = Query(default=None),
+):
+    products = await catalog_service.list_catalog(db, fulfillment_provider=fulfillment_provider)
     return ProductListResponse(products=[ProductResponse.model_validate(p) for p in products])

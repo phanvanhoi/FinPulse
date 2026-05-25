@@ -26,3 +26,15 @@ class ConnectionCallbackRequest(BaseModel):
     provider: str
     code: str
     state: str | None = None
+
+
+class BurgerPrintsConnectRequest(BaseModel):
+    api_key: str
+
+
+class BurgerPrintsConnectionStatus(BaseModel):
+    connected: bool
+    connection_id: uuid.UUID | None = None
+    status: str | None = None
+    last_synced_at: datetime | None = None
+    error_message: str | None = None

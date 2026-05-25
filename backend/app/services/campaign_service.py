@@ -46,6 +46,13 @@ async def _validate_product_and_variants(
     for vp in variant_prices:
         if vp.variant_id not in variant_ids:
             raise BadRequestError(f"Variant {vp.variant_id} does not belong to selected product")
+
+    if product.fulfillment_provider == "burger_prints":
+        selected = [v for v in product.variants if v.id in {vp.variant_id for vp in variant_prices}]
+        missing_sku = [v.name for v in selected if not v.provider_sku]
+        if missing_sku:
+            raise BadRequestError(f"BurgerPrints variants missing SKU: {', '.join(missing_sku)}")
+
     return product
 
 
@@ -80,6 +87,8 @@ def _campaign_to_response(campaign: SalesCampaign, product_name: str | None = No
         "slug": campaign.slug,
         "description": campaign.description,
         "design_image_url": campaign.design_image_url,
+        "design_back_url": campaign.design_back_url,
+        "print_location": campaign.print_location,
         "retail_price": campaign.retail_price,
         "status": campaign.status.value,
         "starts_at": campaign.starts_at,
@@ -103,6 +112,7 @@ async def create_campaign(db: AsyncSession, store: Store, payload: CampaignCreat
         slug=slug,
         description=payload.description,
         retail_price=payload.retail_price,
+        print_location=payload.print_location,
         starts_at=payload.starts_at,
         ends_at=payload.ends_at,
         status=CampaignStatus.DRAFT,
@@ -191,6 +201,8 @@ async def publish_campaign(db: AsyncSession, organization_id: uuid.UUID, campaig
         raise NotFoundError("Campaign not found")
     if not campaign.design_image_url:
         raise BadRequestError("Upload a design before publishing")
+    if campaign.print_location in ("back", "both") and not campaign.design_back_url:
+        raise BadRequestError("Upload a back design before publishing (print location requires back print)")
     if not campaign.items:
         raise BadRequestError("Campaign must have at least one variant price")
 
@@ -311,15 +323,21 @@ def validate_design_file(filename: str, content_type: str | None, size: int) -> 
     return ext
 
 
-async def save_campaign_design(campaign: SalesCampaign, file_bytes: bytes, extension: str) -> str:
+async def save_campaign_design(
+    campaign: SalesCampaign, file_bytes: bytes, extension: str, side: str = "front"
+) -> str:
     design_dir = Path(settings.UPLOAD_DIR) / "designs"
     design_dir.mkdir(parents=True, exist_ok=True)
 
-    for existing in design_dir.glob(f"{campaign.id}.*"):
+    suffix = "" if side == "front" else f"-{side}"
+    for existing in design_dir.glob(f"{campaign.id}{suffix}.*"):
         existing.unlink(missing_ok=True)
 
-    filename = f"{campaign.id}{extension}"
+    filename = f"{campaign.id}{suffix}{extension}"
     (design_dir / filename).write_bytes(file_bytes)
     url = f"{settings.BACKEND_URL.rstrip('/')}/uploads/designs/{filename}"
-    campaign.design_image_url = url
+    if side == "back":
+        campaign.design_back_url = url
+    else:
+        campaign.design_image_url = url
     return url

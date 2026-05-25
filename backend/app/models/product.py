@@ -20,6 +20,9 @@ class Product(Base, UUIDMixin, TimestampMixin):
     category: Mapped[str] = mapped_column(String(100), default="apparel", nullable=False)
     image_url: Mapped[str | None] = mapped_column(String(500))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    fulfillment_provider: Mapped[str | None] = mapped_column(String(50))
+    external_product_code: Mapped[str | None] = mapped_column(String(100))
+    fulfillment_location: Mapped[str | None] = mapped_column(String(10))
 
     variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
 
@@ -34,5 +37,8 @@ class ProductVariant(Base, UUIDMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     sku: Mapped[str | None] = mapped_column(String(100))
     base_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    provider_sku: Mapped[str | None] = mapped_column(String(100), index=True)
+    color: Mapped[str | None] = mapped_column(String(50))
+    external_variant_id: Mapped[str | None] = mapped_column(String(100))
 
     product = relationship("Product", back_populates="variants")

@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
@@ -10,6 +11,7 @@ from sqlalchemy import select
 from app.models.cart import Cart, CartStatus
 from app.models.store import Store
 from app.services.abandoned_cart_service import process_abandoned_checkouts
+from app.tests.helpers import checkout_payload
 
 
 async def _create_live_campaign(client: AsyncClient) -> tuple[str, str, str]:
@@ -153,16 +155,12 @@ async def test_order_confirmation_on_complete(client: AsyncClient):
     )
     checkout = await client.post(
         f"/api/v1/cart/{slug}/checkout",
-        json={
-            "session_id": session_id,
-            "customer_email": "buyer@example.com",
-            "customer_name": "Buyer",
-            "shipping_address": "123 St",
-        },
+        json=checkout_payload(session_id),
     )
     order_id = checkout.json()["order_id"]
 
-    complete = await client.post(f"/api/v1/orders/complete?order_id={order_id}&mock=true")
+    with patch("app.tasks.fulfillment_tasks.submit_order_to_burgerprints.delay"):
+        complete = await client.post(f"/api/v1/orders/complete?order_id={order_id}&mock=true")
     assert complete.status_code == 200
     assert complete.json()["status"] == "paid"
 

@@ -71,8 +71,52 @@ async def complete_checkout(
     order_id: uuid.UUID = Query(...),
     mock: bool = Query(default=False),
 ):
-    order = await checkout_service.complete_order(db, order_id, mock=mock or not settings.STRIPE_SECRET_KEY)
+    if mock and settings.APP_ENV == "production":
+        from app.core.exceptions import BadRequestError
+
+        raise BadRequestError("Mock checkout is disabled in production")
+    order = await checkout_service.complete_order(
+        db,
+        order_id,
+        mock=mock and not settings.STRIPE_SECRET_KEY,
+    )
     return {"status": order.status.value, "order_id": str(order.id)}
+
+
+@router.post("/{order_id}/retry-fulfillment")
+async def retry_fulfillment(order_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    from app.models.order import Order
+
+    order = await db.get(Order, order_id)
+    if not order or order.organization_id != current_user.organization_id:
+        from app.core.exceptions import NotFoundError
+
+        raise NotFoundError("Order not found")
+
+    from app.tasks.fulfillment_tasks import retry_failed_fulfillment
+
+    try:
+        retry_failed_fulfillment.delay(str(order_id))
+    except Exception:
+        from app.services.fulfillment_service import submit_order_to_burgerprints_sync
+
+        result = submit_order_to_burgerprints_sync(str(order_id))
+        return result
+    return {"status": "queued", "order_id": str(order_id)}
+
+
+@router.post("/webhooks/burgerprints")
+async def burgerprints_webhook(request: Request):
+    from app.core.exceptions import BadRequestError
+    from app.services.fulfillment_service import apply_burgerprints_webhook_sync
+
+    if settings.BURGERPRINTS_WEBHOOK_SECRET:
+        token = request.headers.get("x-burgerprints-token") or request.headers.get("x-webhook-token")
+        if token != settings.BURGERPRINTS_WEBHOOK_SECRET:
+            raise BadRequestError("Invalid webhook token")
+
+    payload = await request.json()
+    return apply_burgerprints_webhook_sync(payload)
 
 
 @router.post("/webhooks/stripe")

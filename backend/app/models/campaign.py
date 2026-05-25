@@ -33,6 +33,8 @@ class SalesCampaign(Base, UUIDMixin, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
     design_image_url: Mapped[str | None] = mapped_column(String(500))
+    design_back_url: Mapped[str | None] = mapped_column(String(500))
+    print_location: Mapped[str] = mapped_column(String(20), default="front", nullable=False)
     retail_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     status: Mapped[CampaignStatus] = mapped_column(
         Enum(CampaignStatus, name="campaignstatus"), default=CampaignStatus.DRAFT, nullable=False

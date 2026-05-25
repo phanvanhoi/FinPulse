@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +14,7 @@ class ConnectionProvider(str, enum.Enum):
     XERO = "xero"
     GOOGLE_ADS = "google_ads"
     META_ADS = "meta_ads"
+    BURGER_PRINTS = "burger_prints"
 
 
 class ConnectionStatus(str, enum.Enum):
@@ -25,6 +26,7 @@ class ConnectionStatus(str, enum.Enum):
 
 class Connection(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "connections"
+    __table_args__ = (UniqueConstraint("organization_id", "provider", name="uq_org_connection_provider"),)
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True

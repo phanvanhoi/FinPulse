@@ -89,7 +89,15 @@ export default function PublicCampaignPage() {
         session_id: sessionId,
         customer_email: values.email,
         customer_name: values.name,
-        shipping_address: values.address,
+        shipping: {
+          street_address: values.street_address,
+          apt_suite_other: values.apt_suite_other || "",
+          city: values.city,
+          state: values.state,
+          zipcode: values.zipcode,
+          country: values.country || "US",
+          phone_number: values.phone,
+        },
         tip_percent: values.tip_percent,
       });
 
@@ -190,11 +198,29 @@ export default function PublicCampaignPage() {
           <Form.Item label="Email" name="email" rules={[{ required: true, type: "email" }]}>
             <Input placeholder="you@example.com" onBlur={handleEmailBlur} />
           </Form.Item>
-          <Form.Item label="Full Name" name="name">
+          <Form.Item label="Full Name" name="name" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item label="Shipping Address" name="address" rules={[{ required: true }]}>
-            <Input.TextArea rows={2} />
+          <Form.Item label="Phone" name="phone" rules={[{ required: true }]}>
+            <Input placeholder="+1 555 123 4567" />
+          </Form.Item>
+          <Form.Item label="Street Address" name="street_address" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item label="Apt / Suite" name="apt_suite_other">
+            <Input />
+          </Form.Item>
+          <Form.Item label="City" name="city" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item label="State" name="state" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item label="ZIP Code" name="zipcode" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item label="Country" name="country" initialValue="US" rules={[{ required: true }]}>
+            <Input maxLength={2} />
           </Form.Item>
           {campaign.tips_enabled && (
             <Form.Item label="Add a tip?" name="tip_percent">

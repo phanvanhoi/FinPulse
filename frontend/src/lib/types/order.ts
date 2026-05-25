@@ -4,6 +4,7 @@ export interface OrderItem {
   quantity: number;
   unit_price: number;
   line_total: number;
+  provider_sku?: string | null;
 }
 
 export interface Order {
@@ -17,6 +18,12 @@ export interface Order {
   tip_amount: number;
   total: number;
   status: string;
+  fulfillment_provider?: string | null;
+  external_order_id?: string | null;
+  fulfillment_status?: string | null;
+  fulfillment_error?: string | null;
+  tracking_number?: string | null;
+  fulfillment_submitted_at?: string | null;
   items: OrderItem[];
   created_at: string;
   facebook_pixel_id?: string | null;

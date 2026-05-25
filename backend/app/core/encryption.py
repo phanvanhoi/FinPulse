@@ -1,13 +1,19 @@
 """Encrypt/decrypt sensitive data like API keys and OAuth tokens at rest."""
 
+import base64
+import hashlib
+
 from cryptography.fernet import Fernet
 
 from app.config import settings
 
-# Derive a Fernet key from SECRET_KEY (must be 32 url-safe base64-encoded bytes)
-# In production, use a dedicated encryption key via AWS KMS or similar
-_key = Fernet.generate_key()  # TODO: derive from settings or KMS in production
-_fernet = Fernet(_key)
+
+def _derive_fernet_key(secret: str) -> bytes:
+    digest = hashlib.sha256(secret.encode()).digest()
+    return base64.urlsafe_b64encode(digest)
+
+
+_fernet = Fernet(_derive_fernet_key(settings.SECRET_KEY))
 
 
 def encrypt(plaintext: str) -> str:

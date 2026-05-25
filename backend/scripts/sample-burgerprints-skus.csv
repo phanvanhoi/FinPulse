@@ -1,0 +1,6 @@
+product_name,product_code,color,size,fulfillment_location,provider_sku,base_price,category
+Unisex T-Shirt,G5000,Black,S,US,G5000-BLK-S-US,6.75,apparel
+Unisex T-Shirt,G5000,Black,M,US,G5000-BLK-M-US,6.75,apparel
+Unisex T-Shirt,G5000,Black,L,US,G5000-BLK-L-US,6.75,apparel
+Unisex T-Shirt,G5000,White,M,US,G5000-WHT-M-US,6.75,apparel
+Premium Hoodie,USGBC3945,Black,M,US,USGBC3945-BLK-M-US,25.00,apparel

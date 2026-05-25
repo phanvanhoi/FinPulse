@@ -62,6 +62,7 @@ export default function NewCampaignPage() {
       product_id: values.product_id,
       description: values.description,
       retail_price: values.retail_price,
+      print_location: values.print_location || "front",
       variant_prices,
       starts_at: values.date_range?.[0]?.toDate?.()?.toISOString?.(),
       ends_at: values.date_range?.[1]?.toDate?.()?.toISOString?.(),
@@ -124,6 +125,13 @@ export default function NewCampaignPage() {
             </Form.Item>
             <Form.Item label="Description" name="description">
               <TextArea rows={3} placeholder="Tell your customers about this campaign..." />
+            </Form.Item>
+            <Form.Item label="Print Location" name="print_location" initialValue="front">
+              <Select>
+                <Select.Option value="front">Front only</Select.Option>
+                <Select.Option value="back">Back only</Select.Option>
+                <Select.Option value="both">Front and back</Select.Option>
+              </Select>
             </Form.Item>
             <Form.Item label="Base Retail Price ($)" name="retail_price" rules={[{ required: true }]}>
               <InputNumber min={1} precision={2} style={{ width: 200 }} />

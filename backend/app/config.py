@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     SENDGRID_API_KEY: str = ""
     FROM_EMAIL: str = "noreply@finpulse.io"
 
+    # BurgerPrints (POD fulfillment)
+    BURGERPRINTS_API_BASE_URL: str = "https://api.burgerprints.com"
+    BURGERPRINTS_API_KEY: str = ""
+    BURGERPRINTS_DEFAULT_FULFILLMENT_LOCATION: str = "US"
+    BURGERPRINTS_AUTO_PAY: bool = False
+    BURGERPRINTS_WEBHOOK_SECRET: str = ""
+
     # Uploads
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE_BYTES: int = 2 * 1024 * 1024

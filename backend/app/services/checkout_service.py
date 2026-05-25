@@ -10,8 +10,10 @@ from app.core.exceptions import BadRequestError, NotFoundError
 from app.models.campaign import CampaignStatus, SalesCampaign
 from app.models.cart import Cart, CartItem, CartStatus
 from app.models.order import Order, OrderItem, OrderStatus
+from app.models.product import Product
 from app.models.store import Store
 from app.schemas.cart import CheckoutRequest
+from app.integrations.burgerprints.mapper import format_shipping_address_text
 from app.services import cart_service
 
 
@@ -43,17 +45,22 @@ async def create_checkout(db: AsyncSession, payload: CheckoutRequest, campaign_s
     cart = cart_result.scalar_one()
     cart.customer_email = payload.customer_email
 
+    shipping_details = payload.shipping.model_dump()
+    shipping_text = payload.shipping_address or format_shipping_address_text(shipping_details)
+
     order = Order(
         store_id=store.id,
         campaign_id=campaign.id,
         organization_id=campaign.organization_id,
         customer_email=payload.customer_email,
         customer_name=payload.customer_name,
-        shipping_address=payload.shipping_address,
+        shipping_address=shipping_text,
+        shipping_details=shipping_details,
         subtotal=subtotal,
         tip_amount=tip_amount,
         total=total,
         status=OrderStatus.PENDING,
+        fulfillment_provider=campaign.product.fulfillment_provider if campaign.product else None,
     )
     db.add(order)
     await db.flush()
@@ -67,6 +74,9 @@ async def create_checkout(db: AsyncSession, payload: CheckoutRequest, campaign_s
                 product_name=campaign.product.name if campaign.product else campaign.title,
                 quantity=ci.quantity,
                 unit_price=ci.unit_price,
+                provider_sku=ci.variant.provider_sku if ci.variant else None,
+                design_front_url=campaign.design_image_url,
+                design_back_url=campaign.design_back_url,
             )
         )
 
@@ -142,7 +152,25 @@ async def complete_order(db: AsyncSession, order_id: uuid.UUID, mock: bool = Fal
     except Exception:
         send_order_confirmation_email(str(order.id))
 
+    if order.fulfillment_provider == "burger_prints" or (
+        order.campaign_id and await _campaign_uses_burgerprints(db, order.campaign_id)
+    ):
+        from app.tasks.fulfillment_tasks import submit_order_to_burgerprints
+
+        try:
+            submit_order_to_burgerprints.delay(str(order.id))
+        except Exception:
+            submit_order_to_burgerprints(str(order.id))
+
     return order
+
+
+async def _campaign_uses_burgerprints(db: AsyncSession, campaign_id: uuid.UUID) -> bool:
+    campaign = await db.get(SalesCampaign, campaign_id)
+    if not campaign:
+        return False
+    product = await db.get(Product, campaign.product_id)
+    return bool(product and product.fulfillment_provider == "burger_prints")
 
 
 async def list_orders(db: AsyncSession, organization_id: uuid.UUID, page: int = 1, page_size: int = 20) -> tuple[list[dict], int]:
@@ -225,6 +253,7 @@ def _order_to_dict(order: Order, campaign_title: str | None) -> dict:
                 "quantity": item.quantity,
                 "unit_price": item.unit_price,
                 "line_total": item.unit_price * item.quantity,
+                "provider_sku": item.provider_sku,
             }
         )
     return {
@@ -237,6 +266,12 @@ def _order_to_dict(order: Order, campaign_title: str | None) -> dict:
         "tip_amount": order.tip_amount,
         "total": order.total,
         "status": order.status.value,
+        "fulfillment_provider": order.fulfillment_provider,
+        "external_order_id": order.external_order_id,
+        "fulfillment_status": order.fulfillment_status.value if order.fulfillment_status else None,
+        "fulfillment_error": order.fulfillment_error,
+        "tracking_number": order.tracking_number,
+        "fulfillment_submitted_at": order.fulfillment_submitted_at,
         "items": items,
         "created_at": order.created_at,
     }

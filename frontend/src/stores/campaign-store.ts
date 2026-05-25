@@ -37,6 +37,14 @@ export const useCampaignStore = create<CampaignState>((set) => ({
 
   fetchProducts: async () => {
     try {
+      const { data: bpData } = await api.get<{ products: Product[] }>(
+        "/products",
+        { params: { fulfillment_provider: "burger_prints" } }
+      );
+      if (bpData.products.length > 0) {
+        set({ products: bpData.products });
+        return;
+      }
       const { data } = await api.get<{ products: Product[] }>("/products");
       set({ products: data.products });
     } catch {

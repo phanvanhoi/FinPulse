@@ -42,10 +42,21 @@ class SaveEmailRequest(BaseModel):
     customer_email: EmailStr
 
 
+class ShippingAddressInput(BaseModel):
+    street_address: str = Field(min_length=1)
+    apt_suite_other: str = ""
+    city: str = Field(min_length=1)
+    state: str = Field(min_length=1)
+    zipcode: str = Field(min_length=1)
+    country: str = Field(default="US", min_length=2, max_length=2)
+    phone_number: str = Field(min_length=5)
+
+
 class CheckoutRequest(BaseModel):
     session_id: str
     customer_email: EmailStr
     customer_name: str | None = None
+    shipping: ShippingAddressInput
     shipping_address: str | None = None
     tip_percent: float | None = Field(default=None, ge=0, le=100)
 

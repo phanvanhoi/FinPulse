@@ -1,9 +1,12 @@
 import io
 import uuid
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
+
+from app.tests.helpers import checkout_payload
 
 
 async def _setup_seller(client: AsyncClient) -> tuple[str, str]:
@@ -119,17 +122,13 @@ async def test_checkout_flow(client: AsyncClient):
 
     checkout_resp = await client.post(
         f"/api/v1/cart/{slug}/checkout",
-        json={
-            "session_id": session_id,
-            "customer_email": "buyer@example.com",
-            "customer_name": "Buyer",
-            "shipping_address": "123 Main St",
-        },
+        json=checkout_payload(session_id),
     )
     assert checkout_resp.status_code == 200
     order_id = checkout_resp.json()["order_id"]
 
-    complete_resp = await client.post(f"/api/v1/orders/complete?order_id={order_id}&mock=true")
+    with patch("app.tasks.fulfillment_tasks.submit_order_to_burgerprints.delay"):
+        complete_resp = await client.post(f"/api/v1/orders/complete?order_id={order_id}&mock=true")
     assert complete_resp.status_code == 200
     assert complete_resp.json()["status"] == "paid"
 

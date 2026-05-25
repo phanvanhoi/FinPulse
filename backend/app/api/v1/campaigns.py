@@ -57,7 +57,11 @@ async def update_campaign(
 
 @router.post("/{campaign_id}/design", response_model=CampaignResponse)
 async def upload_design(
-    campaign_id: uuid.UUID, current_user: CurrentUser, db: DB, file: UploadFile = File(...)
+    campaign_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DB,
+    file: UploadFile = File(...),
+    side: str = Query(default="front", pattern="^(front|back)$"),
 ):
     await campaign_service.get_campaign(db, current_user.organization_id, campaign_id)
     from app.models.campaign import SalesCampaign
@@ -70,7 +74,7 @@ async def upload_design(
 
     content = await file.read()
     ext = campaign_service.validate_design_file(file.filename or "design.png", file.content_type, len(content))
-    await campaign_service.save_campaign_design(campaign, content, ext)
+    await campaign_service.save_campaign_design(campaign, content, ext, side=side)
     await db.flush()
     updated = await campaign_service.get_campaign(db, current_user.organization_id, campaign_id)
     return CampaignResponse(**updated)

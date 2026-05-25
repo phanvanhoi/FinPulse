@@ -2,9 +2,12 @@ import io
 import uuid
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
+
+from app.tests.helpers import checkout_payload
 
 
 async def _setup_seller_with_paid_order(client: AsyncClient) -> str:
@@ -61,15 +64,11 @@ async def _setup_seller_with_paid_order(client: AsyncClient) -> str:
     )
     checkout = await client.post(
         f"/api/v1/cart/{slug}/checkout",
-        json={
-            "session_id": session_id,
-            "customer_email": "buyer@example.com",
-            "customer_name": "Buyer",
-            "shipping_address": "123 Main St",
-        },
+        json=checkout_payload(session_id),
     )
     order_id = checkout.json()["order_id"]
-    await client.post(f"/api/v1/orders/complete?order_id={order_id}&mock=true")
+    with patch("app.tasks.fulfillment_tasks.submit_order_to_burgerprints.delay"):
+        await client.post(f"/api/v1/orders/complete?order_id={order_id}&mock=true")
 
     return token
 

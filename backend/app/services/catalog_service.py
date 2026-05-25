@@ -67,12 +67,15 @@ async def seed_catalog(db: AsyncSession) -> None:
     await db.flush()
 
 
-async def list_catalog(db: AsyncSession) -> list[Product]:
+async def list_catalog(db: AsyncSession, fulfillment_provider: str | None = None) -> list[Product]:
     await seed_catalog(db)
-    result = await db.execute(
+    query = (
         select(Product)
         .where(Product.is_active.is_(True), Product.organization_id.is_(None))
         .options(selectinload(Product.variants))
         .order_by(Product.name)
     )
+    if fulfillment_provider:
+        query = query.where(Product.fulfillment_provider == fulfillment_provider)
+    result = await db.execute(query)
     return list(result.scalars().all())
