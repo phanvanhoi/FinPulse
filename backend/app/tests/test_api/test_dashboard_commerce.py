@@ -97,6 +97,8 @@ async def test_commerce_overview_empty(client: AsyncClient):
     assert data["setup"]["has_live_campaign"] is False
     assert data["setup"]["has_paid_order"] is False
     assert data["store"] is not None
+    assert len(data["insights"]) >= 1
+    assert data["finance_snapshot"]["source"] == "commerce"
 
 
 @pytest.mark.asyncio
@@ -116,6 +118,32 @@ async def test_commerce_overview_with_order(client: AsyncClient):
     assert data["setup"]["has_paid_order"] is True
     assert len(data["recent_orders"]) >= 1
     assert len(data["top_campaigns"]) >= 1
+    assert len(data["insights"]) >= 1
+    assert data["finance_snapshot"]["source"] == "commerce"
+    assert data["marketing_snapshot"]["source"] == "commerce"
+
+
+@pytest.mark.asyncio
+async def test_refresh_insights(client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": f"insights-{uuid.uuid4().hex[:8]}@example.com",
+            "password": "securepassword123",
+            "name": "Seller",
+            "organization_name": "Insight Shop",
+        },
+    )
+    token = resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    refresh = await client.post("/api/v1/insights/refresh", headers=headers)
+    assert refresh.status_code == 200
+    assert refresh.json()["generated"] >= 1
+
+    listed = await client.get("/api/v1/insights", headers=headers)
+    assert listed.status_code == 200
+    assert listed.json()["total"] >= 1
 
 
 @pytest.mark.asyncio

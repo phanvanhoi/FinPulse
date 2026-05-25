@@ -8,6 +8,8 @@ import type { ColumnsType } from "antd/es/table";
 import MetricCard from "@/components/dashboard/MetricCard";
 import SetupChecklist from "@/components/dashboard/SetupChecklist";
 import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
+import DashboardInsightsPanel from "@/components/dashboard/DashboardInsightsPanel";
+import FinanceMarketingWidgets from "@/components/dashboard/FinanceMarketingWidgets";
 import { useCommerceDashboardStore } from "@/stores/commerce-dashboard-store";
 import { useAuthStore } from "@/stores/auth-store";
 import type { RecentOrderSummary, TopCampaignSummary } from "@/lib/types";
@@ -216,6 +218,14 @@ export default function DashboardPage() {
       )}
 
       {overview && <SetupChecklist setup={overview.setup} store={overview.store} />}
+
+      <DashboardInsightsPanel insights={overview?.insights ?? []} loading={isLoading} />
+
+      <FinanceMarketingWidgets
+        finance={overview?.finance_snapshot ?? null}
+        marketing={overview?.marketing_snapshot ?? null}
+        loading={isLoading}
+      />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={12} sm={12} lg={6}>

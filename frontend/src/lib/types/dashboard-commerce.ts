@@ -51,6 +51,31 @@ export interface SetupStatus {
   has_paid_order: boolean;
 }
 
+export interface CommerceInsightPreview {
+  insight_type: string;
+  category: string;
+  title: string;
+  body_markdown: string;
+  severity: string;
+}
+
+export interface FinanceSnapshot {
+  revenue: number;
+  net_income: number | null;
+  cash_on_hand: number | null;
+  source: string;
+  detail: string;
+}
+
+export interface MarketingSnapshot {
+  live_campaigns: number;
+  units_sold: number;
+  ad_spend: number | null;
+  overall_roas: number | null;
+  source: string;
+  detail: string;
+}
+
 export interface CommerceDashboardOverview {
   period_start: string;
   period_end: string;
@@ -61,4 +86,7 @@ export interface CommerceDashboardOverview {
   recent_orders: RecentOrderSummary[];
   store: StoreSummary | null;
   setup: SetupStatus;
+  insights: CommerceInsightPreview[];
+  finance_snapshot: FinanceSnapshot | null;
+  marketing_snapshot: MarketingSnapshot | null;
 }

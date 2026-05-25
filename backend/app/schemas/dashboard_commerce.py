@@ -57,6 +57,31 @@ class SetupStatus(BaseModel):
     has_paid_order: bool
 
 
+class CommerceInsightPreview(BaseModel):
+    insight_type: str
+    category: str
+    title: str
+    body_markdown: str
+    severity: str
+
+
+class FinanceSnapshot(BaseModel):
+    revenue: Decimal
+    net_income: Decimal | None = None
+    cash_on_hand: Decimal | None = None
+    source: str = "commerce"
+    detail: str
+
+
+class MarketingSnapshot(BaseModel):
+    live_campaigns: int
+    units_sold: int
+    ad_spend: Decimal | None = None
+    overall_roas: Decimal | None = None
+    source: str = "commerce"
+    detail: str
+
+
 class CommerceDashboardOverview(BaseModel):
     period_start: date
     period_end: date
@@ -67,3 +92,6 @@ class CommerceDashboardOverview(BaseModel):
     recent_orders: list[RecentOrderSummary]
     store: StoreSummary | None = None
     setup: SetupStatus
+    insights: list[CommerceInsightPreview] = []
+    finance_snapshot: FinanceSnapshot | None = None
+    marketing_snapshot: MarketingSnapshot | None = None

@@ -10,10 +10,16 @@ from app.models.campaign import CampaignStatus, SalesCampaign
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.organization import Organization
 from app.models.store import Store
+from app.models.financial import FinancialPeriod, PeriodType
+from app.models.marketing import AdCampaign, CampaignMetricsDaily, CampaignStatus as AdCampaignStatus
 from app.services import store_service
+from app.services import commerce_insight_service
 from app.schemas.dashboard_commerce import (
     CommerceDashboardOverview,
+    CommerceInsightPreview,
     CommerceKPIs,
+    FinanceSnapshot,
+    MarketingSnapshot,
     OrdersByStatus,
     RecentOrderSummary,
     RevenueByDay,
@@ -276,6 +282,21 @@ async def get_commerce_overview(
         avg_order_value=avg_order_value.quantize(Decimal("0.01")),
     )
 
+    generated_insights = await commerce_insight_service.generate_commerce_insights(db, org_id, period_days)
+    insights = [
+        CommerceInsightPreview(
+            insight_type=i.insight_type.value,
+            category=i.category.value,
+            title=i.title,
+            body_markdown=i.body_markdown,
+            severity=i.severity.value,
+        )
+        for i in generated_insights
+    ]
+
+    finance_snapshot = await _build_finance_snapshot(db, org_id, revenue)
+    marketing_snapshot = await _build_marketing_snapshot(db, org_id, live_campaigns, units_sold, period_start, period_end)
+
     return CommerceDashboardOverview(
         period_start=period_start,
         period_end=period_end,
@@ -286,4 +307,84 @@ async def get_commerce_overview(
         recent_orders=recent_orders,
         store=store_summary,
         setup=setup,
+        insights=insights,
+        finance_snapshot=finance_snapshot,
+        marketing_snapshot=marketing_snapshot,
+    )
+
+
+async def _build_finance_snapshot(db: AsyncSession, org_id: uuid.UUID, commerce_revenue: Decimal) -> FinanceSnapshot:
+    fin_result = await db.execute(
+        select(FinancialPeriod)
+        .where(FinancialPeriod.organization_id == org_id, FinancialPeriod.period_type == PeriodType.MONTHLY)
+        .order_by(FinancialPeriod.end_date.desc())
+        .limit(1)
+    )
+    fin_period = fin_result.scalar_one_or_none()
+    if fin_period and fin_period.revenue > 0:
+        return FinanceSnapshot(
+            revenue=fin_period.revenue,
+            net_income=fin_period.net_income,
+            cash_on_hand=fin_period.cash_on_hand,
+            source="accounting",
+            detail="From connected accounting data",
+        )
+    return FinanceSnapshot(
+        revenue=commerce_revenue,
+        net_income=None,
+        cash_on_hand=None,
+        source="commerce",
+        detail="From paid orders in your store",
+    )
+
+
+async def _build_marketing_snapshot(
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    live_campaigns: int,
+    units_sold: int,
+    period_start: date,
+    period_end: date,
+) -> MarketingSnapshot:
+    mkt_result = await db.execute(
+        select(
+            func.coalesce(func.sum(CampaignMetricsDaily.spend), 0).label("spend"),
+            func.coalesce(func.sum(CampaignMetricsDaily.revenue_attributed), 0).label("revenue"),
+        )
+        .join(AdCampaign, CampaignMetricsDaily.campaign_id == AdCampaign.id)
+        .where(
+            AdCampaign.organization_id == org_id,
+            CampaignMetricsDaily.date >= period_start,
+            CampaignMetricsDaily.date <= period_end,
+        )
+    )
+    mkt = mkt_result.one()
+    ad_spend = Decimal(str(mkt.spend or 0))
+    ad_revenue = Decimal(str(mkt.revenue or 0))
+
+    if ad_spend > 0:
+        roas = (ad_revenue / ad_spend) if ad_spend else Decimal("0")
+        active_ads = (
+            await db.execute(
+                select(func.count(AdCampaign.id)).where(
+                    AdCampaign.organization_id == org_id,
+                    AdCampaign.status == AdCampaignStatus.ACTIVE,
+                )
+            )
+        ).scalar() or 0
+        return MarketingSnapshot(
+            live_campaigns=active_ads,
+            units_sold=units_sold,
+            ad_spend=ad_spend,
+            overall_roas=roas.quantize(Decimal("0.1")),
+            source="ads",
+            detail="From connected ad platforms",
+        )
+    return MarketingSnapshot(
+        live_campaigns=live_campaigns,
+        units_sold=units_sold,
+        ad_spend=None,
+        overall_roas=None,
+        source="commerce",
+        detail="From your sales campaigns",
     )

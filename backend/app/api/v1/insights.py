@@ -4,8 +4,15 @@ from sqlalchemy import func, select, update
 from app.dependencies import DB, CurrentUser
 from app.models.insight import AIInsight
 from app.schemas.insight import InsightListResponse, InsightResponse, MarkInsightReadRequest
+from app.services import commerce_insight_service
 
 router = APIRouter()
+
+
+@router.post("/refresh")
+async def refresh_insights(current_user: CurrentUser, db: DB):
+    count = await commerce_insight_service.refresh_stored_insights(db, current_user.organization_id)
+    return {"generated": count, "status": "ok"}
 
 
 @router.get("", response_model=InsightListResponse)

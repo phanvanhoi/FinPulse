@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Table, Tag, Typography } from "antd";
+import { Button, Space, Table, Tag, Typography, message } from "antd";
+import { DownloadOutlined } from "@ant-design/icons";
 import api from "@/lib/api";
+import { downloadCsv } from "@/lib/export-csv";
 import type { Order } from "@/lib/types/order";
 
 const { Title, Text } = Typography;
@@ -17,6 +19,7 @@ const statusColors: Record<string, string> = {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     api
@@ -24,6 +27,44 @@ export default function OrdersPage() {
       .then(({ data }) => setOrders(data.orders))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleExportPage = () => {
+    if (orders.length === 0) {
+      message.info("No orders to export");
+      return;
+    }
+    downloadCsv(
+      `orders-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Order ID", "Campaign", "Customer", "Total", "Status", "Date"],
+      orders.map((o) => [
+        o.id,
+        o.campaign_title ?? "",
+        o.customer_email,
+        Number(o.total).toFixed(2),
+        o.status,
+        new Date(o.created_at).toISOString(),
+      ])
+    );
+    message.success("Orders exported");
+  };
+
+  const handleExportAll = async () => {
+    setExporting(true);
+    try {
+      const { data } = await api.get<Blob>("/orders/export/csv", { responseType: "blob" });
+      const url = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `orders-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      message.success("Full export downloaded");
+    } catch {
+      message.error("Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const columns = [
     {
@@ -65,11 +106,21 @@ export default function OrdersPage() {
 
   return (
     <div>
-      <Title level={3} style={{ marginBottom: 4 }}>Orders</Title>
-      <Text type="secondary" style={{ display: "block", marginBottom: 24 }}>
-        Manage customer orders from your campaigns
-      </Text>
-      <Table rowKey="id" columns={columns} dataSource={orders} loading={loading} pagination={{ pageSize: 20 }} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <Title level={3} style={{ marginBottom: 4 }}>Orders</Title>
+          <Text type="secondary">Manage customer orders from your campaigns</Text>
+        </div>
+        <Space wrap>
+          <Button icon={<DownloadOutlined />} onClick={handleExportPage} disabled={orders.length === 0}>
+            Export page
+          </Button>
+          <Button type="primary" icon={<DownloadOutlined />} loading={exporting} onClick={handleExportAll}>
+            Export all (CSV)
+          </Button>
+        </Space>
+      </div>
+      <Table rowKey="id" columns={columns} dataSource={orders} loading={loading} pagination={{ pageSize: 20 }} scroll={{ x: 640 }} />
     </div>
   );
 }

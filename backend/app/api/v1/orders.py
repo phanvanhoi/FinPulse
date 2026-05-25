@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Response
 
 from app.config import settings
 from app.dependencies import DB, CurrentUser
@@ -19,6 +19,38 @@ async def list_orders(
 ):
     orders, total = await checkout_service.list_orders(db, current_user.organization_id, page, page_size)
     return OrderListResponse(orders=[OrderResponse(**o) for o in orders], total=total)
+
+
+@router.get("/export/csv")
+async def export_orders_csv(current_user: CurrentUser, db: DB):
+    orders = await checkout_service.list_all_orders(db, current_user.organization_id)
+    lines = ["order_id,campaign,customer_email,customer_name,total,status,created_at"]
+    for o in orders:
+        lines.append(
+            ",".join(
+                [
+                    str(o["id"]),
+                    _csv_escape(o.get("campaign_title") or ""),
+                    _csv_escape(o["customer_email"]),
+                    _csv_escape(o.get("customer_name") or ""),
+                    f"{float(o['total']):.2f}",
+                    o["status"],
+                    o["created_at"].isoformat() if hasattr(o["created_at"], "isoformat") else str(o["created_at"]),
+                ]
+            )
+        )
+    content = "\n".join(lines)
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="orders-export.csv"'},
+    )
+
+
+def _csv_escape(value: str) -> str:
+    if any(c in value for c in [",", '"', "\n"]):
+        return f'"{value.replace(chr(34), chr(34) + chr(34))}"'
+    return value
 
 
 @router.get("/{order_id}", response_model=OrderResponse)

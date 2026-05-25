@@ -162,6 +162,20 @@ async def list_orders(db: AsyncSession, organization_id: uuid.UUID, page: int = 
     return orders, total
 
 
+async def list_all_orders(db: AsyncSession, organization_id: uuid.UUID) -> list[dict]:
+    result = await db.execute(
+        select(Order)
+        .where(Order.organization_id == organization_id)
+        .options(selectinload(Order.items))
+        .order_by(Order.created_at.desc())
+    )
+    orders = []
+    for order in result.scalars().all():
+        campaign = await db.get(SalesCampaign, order.campaign_id) if order.campaign_id else None
+        orders.append(_order_to_dict(order, campaign.title if campaign else None))
+    return orders
+
+
 async def get_order(db: AsyncSession, organization_id: uuid.UUID, order_id: uuid.UUID) -> dict:
     result = await db.execute(
         select(Order)

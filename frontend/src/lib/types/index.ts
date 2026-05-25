@@ -86,7 +86,10 @@ export interface Connection {
 
 export type {
   CommerceDashboardOverview,
+  CommerceInsightPreview,
   CommerceKPIs,
+  FinanceSnapshot,
+  MarketingSnapshot,
   OrdersByStatus,
   RecentOrderSummary,
   RevenueByDay,
