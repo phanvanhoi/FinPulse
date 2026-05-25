@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Button, Card, Empty, Space, Table, Tag, Typography } from "antd";
-import { PlusOutlined, RocketOutlined } from "@ant-design/icons";
+import { Button, Card, Empty, Space, Table, Tag, Typography, message } from "antd";
+import { CopyOutlined, EditOutlined, PlusOutlined, RocketOutlined, ShareAltOutlined } from "@ant-design/icons";
+import ShareCampaignModal from "@/components/campaigns/ShareCampaignModal";
 import { useCampaignStore } from "@/stores/campaign-store";
 import type { Campaign } from "@/lib/types/campaign";
 
@@ -16,11 +17,22 @@ const statusColors: Record<string, string> = {
 };
 
 export default function CampaignsPage() {
-  const { campaigns, isLoading, fetchCampaigns, publishCampaign, endCampaign } = useCampaignStore();
+  const { campaigns, isLoading, fetchCampaigns, publishCampaign, endCampaign, duplicateCampaign, isSaving } =
+    useCampaignStore();
+  const [shareCampaign, setShareCampaign] = useState<Campaign | null>(null);
 
   useEffect(() => {
     fetchCampaigns();
   }, [fetchCampaigns]);
+
+  const handleDuplicate = async (record: Campaign) => {
+    try {
+      const copy = await duplicateCampaign(record.id);
+      message.success(`Duplicated as "${copy.title}"`);
+    } catch {
+      message.error("Failed to duplicate campaign");
+    }
+  };
 
   const columns = [
     {
@@ -62,21 +74,34 @@ export default function CampaignsPage() {
       title: "Actions",
       key: "actions",
       render: (_: unknown, record: Campaign) => (
-        <Space>
+        <Space wrap>
           {record.status === "draft" && (
-            <Button size="small" type="primary" onClick={() => publishCampaign(record.id)}>
-              Publish
-            </Button>
+            <>
+              <Link href={`/campaigns/${record.id}/edit`}>
+                <Button size="small" icon={<EditOutlined />}>Edit</Button>
+              </Link>
+              <Button size="small" type="primary" onClick={() => publishCampaign(record.id)}>
+                Publish
+              </Button>
+            </>
           )}
           {record.status === "live" && (
             <>
               <Link href={`/campaign/${record.slug}`} target="_blank">
                 <Button size="small">View</Button>
               </Link>
+              <Button size="small" icon={<ShareAltOutlined />} onClick={() => setShareCampaign(record)}>
+                Share
+              </Button>
               <Button size="small" danger onClick={() => endCampaign(record.id)}>
                 End
               </Button>
             </>
+          )}
+          {record.status !== "ended" && (
+            <Button size="small" icon={<CopyOutlined />} loading={isSaving} onClick={() => handleDuplicate(record)}>
+              Duplicate
+            </Button>
           )}
         </Space>
       ),
@@ -108,6 +133,15 @@ export default function CampaignsPage() {
         </Card>
       ) : (
         <Table rowKey="id" columns={columns} dataSource={campaigns} loading={isLoading} pagination={false} />
+      )}
+
+      {shareCampaign && (
+        <ShareCampaignModal
+          open
+          slug={shareCampaign.slug}
+          title={shareCampaign.title}
+          onClose={() => setShareCampaign(null)}
+        />
       )}
     </div>
   );

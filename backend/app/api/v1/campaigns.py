@@ -80,6 +80,12 @@ async def upload_design(
     return CampaignResponse(**updated)
 
 
+@router.post("/{campaign_id}/duplicate", response_model=CampaignResponse)
+async def duplicate_campaign(campaign_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    campaign = await campaign_service.duplicate_campaign(db, current_user.organization_id, campaign_id)
+    return CampaignResponse(**campaign)
+
+
 @router.post("/{campaign_id}/publish", response_model=CampaignResponse)
 async def publish_campaign(campaign_id: uuid.UUID, current_user: CurrentUser, db: DB):
     campaign = await campaign_service.publish_campaign(db, current_user.organization_id, campaign_id)

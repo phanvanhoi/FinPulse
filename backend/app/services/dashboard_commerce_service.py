@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.campaign import CampaignStatus, SalesCampaign
+from app.models.connection import Connection, ConnectionProvider, ConnectionStatus
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.organization import Organization
+from app.models.product import Product
 from app.models.store import Store
 from app.models.financial import FinancialPeriod, PeriodType
 from app.models.marketing import AdCampaign, CampaignMetricsDaily, CampaignStatus as AdCampaignStatus
@@ -266,10 +268,32 @@ async def get_commerce_overview(
     )
     has_paid_order = (paid_total_result.scalar() or 0) > 0
 
+    bp_connection = (
+        await db.execute(
+            select(Connection).where(
+                Connection.organization_id == org_id,
+                Connection.provider == ConnectionProvider.BURGER_PRINTS,
+            )
+        )
+    ).scalar_one_or_none()
+    burgerprints_connected = bp_connection is not None and bp_connection.status == ConnectionStatus.ACTIVE
+
+    bp_catalog_count = (
+        await db.execute(
+            select(func.count(Product.id)).where(
+                Product.organization_id.is_(None),
+                Product.fulfillment_provider == "burger_prints",
+                Product.is_active.is_(True),
+            )
+        )
+    ).scalar() or 0
+
     setup = SetupStatus(
         has_logo=has_logo,
         has_live_campaign=live_campaigns > 0,
         has_paid_order=has_paid_order,
+        burgerprints_connected=burgerprints_connected,
+        has_burgerprints_catalog=bp_catalog_count > 0,
     )
 
     kpis = CommerceKPIs(

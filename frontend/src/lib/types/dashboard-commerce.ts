@@ -49,6 +49,8 @@ export interface SetupStatus {
   has_logo: boolean;
   has_live_campaign: boolean;
   has_paid_order: boolean;
+  burgerprints_connected: boolean;
+  has_burgerprints_catalog: boolean;
 }
 
 export interface CommerceInsightPreview {

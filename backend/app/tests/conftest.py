@@ -5,7 +5,9 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
 from app.core.database import get_db
@@ -14,6 +16,14 @@ from app.models.base import Base
 
 # Use a separate test database
 TEST_DATABASE_URL = settings.DATABASE_URL.replace("/finpulse", "/finpulse_test")
+TEST_DATABASE_URL_SYNC = TEST_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+
+# Align sync sessions (fulfillment webhooks/tasks) with the async test database
+settings.DATABASE_URL_SYNC = TEST_DATABASE_URL_SYNC
+from app.core import sync_database
+
+sync_database.sync_engine = create_engine(TEST_DATABASE_URL_SYNC, pool_pre_ping=True)
+sync_database.SyncSessionLocal = sessionmaker(bind=sync_database.sync_engine, autocommit=False, autoflush=False)
 
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 test_session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -44,7 +54,12 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     async def override_get_db():
-        yield db_session
+        try:
+            yield db_session
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
 
     app.dependency_overrides[get_db] = override_get_db
 

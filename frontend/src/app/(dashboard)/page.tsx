@@ -7,6 +7,7 @@ import { DownloadOutlined, LinkOutlined, PlusOutlined, ReloadOutlined } from "@a
 import type { ColumnsType } from "antd/es/table";
 import MetricCard from "@/components/dashboard/MetricCard";
 import SetupChecklist from "@/components/dashboard/SetupChecklist";
+import FulfillmentSetupChecklist from "@/components/dashboard/FulfillmentSetupChecklist";
 import DashboardEmptyState from "@/components/dashboard/DashboardEmptyState";
 import DashboardInsightsPanel from "@/components/dashboard/DashboardInsightsPanel";
 import FinanceMarketingWidgets from "@/components/dashboard/FinanceMarketingWidgets";
@@ -218,6 +219,7 @@ export default function DashboardPage() {
       )}
 
       {overview && <SetupChecklist setup={overview.setup} store={overview.store} />}
+      {overview && <FulfillmentSetupChecklist setup={overview.setup} />}
 
       <DashboardInsightsPanel insights={overview?.insights ?? []} loading={isLoading} />
 

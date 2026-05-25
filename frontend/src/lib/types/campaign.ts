@@ -29,6 +29,8 @@ export interface Campaign {
   slug: string;
   description: string | null;
   design_image_url: string | null;
+  design_back_url: string | null;
+  print_location: "front" | "back" | "both";
   retail_price: number;
   status: "draft" | "live" | "ended";
   starts_at: string | null;
@@ -64,7 +66,18 @@ export interface CampaignCreatePayload {
   product_id: string;
   description?: string;
   retail_price: number;
+  print_location?: "front" | "back" | "both";
   variant_prices: { variant_id: string; price: number }[];
+  starts_at?: string;
+  ends_at?: string;
+}
+
+export interface CampaignUpdatePayload {
+  title?: string;
+  description?: string;
+  retail_price?: number;
+  print_location?: "front" | "back" | "both";
+  variant_prices?: { variant_id: string; price: number }[];
   starts_at?: string;
   ends_at?: string;
 }

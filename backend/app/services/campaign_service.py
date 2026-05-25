@@ -213,6 +213,50 @@ async def publish_campaign(db: AsyncSession, organization_id: uuid.UUID, campaig
     return _campaign_to_response(campaign)
 
 
+async def duplicate_campaign(db: AsyncSession, organization_id: uuid.UUID, campaign_id: uuid.UUID) -> dict:
+    result = await db.execute(
+        select(SalesCampaign)
+        .where(SalesCampaign.id == campaign_id, SalesCampaign.organization_id == organization_id)
+        .options(
+            selectinload(SalesCampaign.items).selectinload(CampaignVariant.variant),
+            selectinload(SalesCampaign.product),
+        )
+    )
+    original = result.scalar_one_or_none()
+    if not original:
+        raise NotFoundError("Campaign not found")
+
+    base_title = f"{original.title} (Copy)"
+    slug = await _unique_slug(db, original.store_id, slugify(base_title))
+
+    copy = SalesCampaign(
+        store_id=original.store_id,
+        organization_id=original.organization_id,
+        product_id=original.product_id,
+        title=base_title,
+        slug=slug,
+        description=original.description,
+        design_image_url=original.design_image_url,
+        design_back_url=original.design_back_url,
+        print_location=original.print_location,
+        retail_price=original.retail_price,
+        starts_at=original.starts_at,
+        ends_at=original.ends_at,
+        status=CampaignStatus.DRAFT,
+    )
+    db.add(copy)
+    await db.flush()
+
+    variant_prices = [
+        CampaignVariantInput(variant_id=item.variant_id, price=item.price) for item in original.items
+    ]
+    await _set_campaign_variants(db, copy, variant_prices)
+    await db.refresh(copy, ["items", "product"])
+    for item in copy.items:
+        await db.refresh(item, ["variant"])
+    return _campaign_to_response(copy, original.product.name if original.product else None)
+
+
 async def end_campaign(db: AsyncSession, organization_id: uuid.UUID, campaign_id: uuid.UUID) -> dict:
     result = await db.execute(
         select(SalesCampaign)

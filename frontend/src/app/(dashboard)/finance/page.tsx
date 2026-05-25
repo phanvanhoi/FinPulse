@@ -1,69 +1,109 @@
 "use client";
 
-import { Col, Row, Typography, Card, Table } from "antd";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Alert, Col, Row, Segmented, Typography } from "antd";
 import MetricCard from "@/components/dashboard/MetricCard";
-import RevenueChart from "@/components/charts/RevenueChart";
+import CommerceRevenueChart from "@/components/charts/CommerceRevenueChart";
+import api from "@/lib/api";
+import type { CommerceDashboardOverview } from "@/lib/types";
 
-const { Title } = Typography;
-
-const expenseColumns = [
-  { title: "Category", dataIndex: "category", key: "category" },
-  { title: "Amount", dataIndex: "amount", key: "amount", render: (v: number) => `$${v.toLocaleString()}` },
-  { title: "% of Total", dataIndex: "pct", key: "pct", render: (v: number) => `${v}%` },
-  { title: "Change", dataIndex: "change", key: "change", render: (v: number) => (
-    <span style={{ color: v >= 0 ? "#ff4d4f" : "#52c41a" }}>{v >= 0 ? "+" : ""}{v}%</span>
-  )},
-];
-
-const demoExpenses = [
-  { key: "1", category: "Payroll", amount: 18000, pct: 47, change: 3 },
-  { key: "2", category: "Marketing", amount: 12800, pct: 34, change: -5 },
-  { key: "3", category: "Software & Tools", amount: 3200, pct: 8, change: 12 },
-  { key: "4", category: "Office & Utilities", amount: 2500, pct: 7, change: 0 },
-  { key: "5", category: "Other", amount: 1500, pct: 4, change: -8 },
-];
+const { Title, Text } = Typography;
 
 export default function FinancePage() {
+  const [overview, setOverview] = useState<CommerceDashboardOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [periodDays, setPeriodDays] = useState(30);
+
+  useEffect(() => {
+    setLoading(true);
+    api
+      .get<CommerceDashboardOverview>("/dashboard/commerce-overview", { params: { period_days: periodDays } })
+      .then(({ data }) => setOverview(data))
+      .finally(() => setLoading(false));
+  }, [periodDays]);
+
+  const finance = overview?.finance_snapshot;
+  const kpis = overview?.kpis;
+  const isAccounting = finance?.source === "accounting";
+
   return (
     <div>
-      <Title level={3} style={{ marginBottom: 24 }}>Financial Overview</Title>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+        <Title level={3} style={{ margin: 0 }}>Financial Overview</Title>
+        <Segmented
+          options={[
+            { label: "7d", value: 7 },
+            { label: "30d", value: 30 },
+            { label: "90d", value: 90 },
+          ]}
+          value={periodDays}
+          onChange={(v) => setPeriodDays(v as number)}
+        />
+      </div>
+
+      {!isAccounting && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 24 }}
+          message="Showing store sales data"
+          description={
+            <>
+              Revenue below comes from paid orders in your FinPulse store.
+              Connect QuickBooks in <Link href="/settings/connections">Connections</Link> for full P&amp;L when available.
+            </>
+          }
+        />
+      )}
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Revenue" value={67000} prefix="$" changePct={12.3} />
+          <MetricCard
+            title="Revenue"
+            value={Number(finance?.revenue ?? kpis?.revenue ?? 0)}
+            prefix="$"
+            precision={2}
+            changePct={kpis?.revenue_change_pct ?? null}
+            loading={loading}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Net Income" value={29000} prefix="$" changePct={8.1} />
+          <MetricCard
+            title="Net Income"
+            value={finance?.net_income != null ? Number(finance.net_income) : 0}
+            prefix="$"
+            precision={2}
+            loading={loading}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Cash on Hand" value={106250} prefix="$" />
+          <MetricCard
+            title="Cash on Hand"
+            value={finance?.cash_on_hand != null ? Number(finance.cash_on_hand) : 0}
+            prefix="$"
+            precision={2}
+            loading={loading}
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <MetricCard title="Cash Runway" value={8.5} suffix=" months" precision={1} />
+          <MetricCard title="Paid Orders" value={kpis?.orders_count ?? 0} loading={loading} />
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]}>
         <Col xs={24} lg={14}>
-          <RevenueChart data={[]} />
+          <CommerceRevenueChart data={overview?.revenue_by_day ?? []} loading={loading} />
         </Col>
         <Col xs={24} lg={10}>
-          <Card title="Accounts Receivable & Payable">
-            <Row gutter={[16, 16]}>
-              <Col span={12}>
-                <MetricCard title="Receivable" value={23400} prefix="$" />
-              </Col>
-              <Col span={12}>
-                <MetricCard title="Payable" value={15200} prefix="$" />
-              </Col>
-            </Row>
-          </Card>
+          <MetricCard title="Avg Order Value" value={Number(kpis?.avg_order_value ?? 0)} prefix="$" precision={2} loading={loading} />
+          {finance?.detail && (
+            <Text type="secondary" style={{ display: "block", marginTop: 16 }}>
+              {finance.detail}
+            </Text>
+          )}
         </Col>
       </Row>
-
-      <Card title="Expense Breakdown">
-        <Table columns={expenseColumns} dataSource={demoExpenses} pagination={false} />
-      </Card>
     </div>
   );
 }

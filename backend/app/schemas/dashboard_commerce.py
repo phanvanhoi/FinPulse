@@ -55,6 +55,8 @@ class SetupStatus(BaseModel):
     has_logo: bool
     has_live_campaign: bool
     has_paid_order: bool
+    burgerprints_connected: bool = False
+    has_burgerprints_catalog: bool = False
 
 
 class CommerceInsightPreview(BaseModel):

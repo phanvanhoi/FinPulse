@@ -95,6 +95,8 @@ async def test_commerce_overview_empty(client: AsyncClient):
     assert data["kpis"]["live_campaigns"] == 0
     assert data["setup"]["has_live_campaign"] is False
     assert data["setup"]["has_paid_order"] is False
+    assert data["setup"]["burgerprints_connected"] is False
+    assert data["setup"]["has_burgerprints_catalog"] is False
     assert data["store"] is not None
     assert len(data["insights"]) >= 1
     assert data["finance_snapshot"]["source"] == "commerce"

@@ -23,12 +23,23 @@ import type { Product } from "@/lib/types/campaign";
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
+function needsBackDesign(printLocation: string) {
+  return printLocation === "back" || printLocation === "both";
+}
+
+function needsFrontDesign(printLocation: string) {
+  return printLocation === "front" || printLocation === "both";
+}
+
 export default function NewCampaignPage() {
   const router = useRouter();
   const { products, fetchProducts, createCampaign, uploadDesign, publishCampaign, isSaving } = useCampaignStore();
   const [step, setStep] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [printLocation, setPrintLocation] = useState("front");
+  const [frontUploaded, setFrontUploaded] = useState(false);
+  const [backUploaded, setBackUploaded] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -51,18 +62,21 @@ export default function NewCampaignPage() {
   };
 
   const handleCreate = async () => {
-    const values = await form.validateFields(["title", "product_id", "description", "retail_price", "variant_prices"]);
+    const values = await form.validateFields(["title", "product_id", "description", "retail_price", "variant_prices", "print_location"]);
     const variant_prices = Object.entries(values.variant_prices as Record<string, number>).map(([variant_id, price]) => ({
       variant_id,
       price: Number(price),
     }));
+
+    const location = values.print_location || "front";
+    setPrintLocation(location);
 
     const payload = {
       title: values.title,
       product_id: values.product_id,
       description: values.description,
       retail_price: values.retail_price,
-      print_location: values.print_location || "front",
+      print_location: location,
       variant_prices,
       starts_at: values.date_range?.[0]?.toDate?.()?.toISOString?.(),
       ends_at: values.date_range?.[1]?.toDate?.()?.toISOString?.(),
@@ -74,26 +88,35 @@ export default function NewCampaignPage() {
     message.success("Campaign created — now upload your design");
   };
 
-  const handleDesignUpload = async (file: File) => {
+  const handleDesignUpload = async (file: File, side: "front" | "back") => {
     if (!campaignId) return false;
     try {
-      await uploadDesign(campaignId, file);
-      message.success("Design uploaded");
-      setStep(2);
+      await uploadDesign(campaignId, file, side);
+      if (side === "front") setFrontUploaded(true);
+      else setBackUploaded(true);
+      message.success(`${side === "front" ? "Front" : "Back"} design uploaded`);
     } catch {
       message.error("Failed to upload design");
     }
     return false;
   };
 
+  const designsReady =
+    (!needsFrontDesign(printLocation) || frontUploaded) &&
+    (!needsBackDesign(printLocation) || backUploaded);
+
   const handlePublish = async () => {
     if (!campaignId) return;
+    if (!designsReady) {
+      message.error("Upload all required designs before publishing");
+      return;
+    }
     try {
       await publishCampaign(campaignId);
       message.success("Campaign is live!");
       router.push("/campaigns");
     } catch {
-      message.error("Publish failed — make sure design is uploaded");
+      message.error("Publish failed — make sure all designs are uploaded");
     }
   };
 
@@ -127,7 +150,7 @@ export default function NewCampaignPage() {
               <TextArea rows={3} placeholder="Tell your customers about this campaign..." />
             </Form.Item>
             <Form.Item label="Print Location" name="print_location" initialValue="front">
-              <Select>
+              <Select onChange={(v) => setPrintLocation(v)}>
                 <Select.Option value="front">Front only</Select.Option>
                 <Select.Option value="back">Back only</Select.Option>
                 <Select.Option value="both">Front and back</Select.Option>
@@ -163,11 +186,39 @@ export default function NewCampaignPage() {
         {step === 1 && (
           <Card>
             <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
-              Upload your artwork/design. This will be printed on the selected product.
+              Upload artwork for each print side selected above.
             </Text>
-            <Upload beforeUpload={handleDesignUpload} accept="image/*" maxCount={1} listType="picture">
-              <Button icon={<UploadOutlined />} loading={isSaving}>Upload Design</Button>
-            </Upload>
+            <Space direction="vertical" size="large" style={{ width: "100%" }}>
+              {needsFrontDesign(printLocation) && (
+                <div>
+                  <Text strong>Front design {frontUploaded && "✓"}</Text>
+                  <Upload
+                    beforeUpload={(file) => handleDesignUpload(file, "front")}
+                    accept="image/*"
+                    maxCount={1}
+                    listType="picture"
+                  >
+                    <Button icon={<UploadOutlined />} loading={isSaving}>Upload front design</Button>
+                  </Upload>
+                </div>
+              )}
+              {needsBackDesign(printLocation) && (
+                <div>
+                  <Text strong>Back design {backUploaded && "✓"}</Text>
+                  <Upload
+                    beforeUpload={(file) => handleDesignUpload(file, "back")}
+                    accept="image/*"
+                    maxCount={1}
+                    listType="picture"
+                  >
+                    <Button icon={<UploadOutlined />} loading={isSaving}>Upload back design</Button>
+                  </Upload>
+                </div>
+              )}
+              <Button type="primary" disabled={!designsReady} onClick={() => setStep(2)}>
+                Continue to publish
+              </Button>
+            </Space>
           </Card>
         )}
 
@@ -176,7 +227,7 @@ export default function NewCampaignPage() {
             <Space direction="vertical" size="large">
               <Text>Your campaign is ready to go live. Once published, customers can purchase via your storefront.</Text>
               <Space>
-                <Button type="primary" onClick={handlePublish} loading={isSaving}>
+                <Button type="primary" onClick={handlePublish} loading={isSaving} disabled={!designsReady}>
                   Publish Campaign
                 </Button>
                 <Button onClick={() => router.push("/campaigns")}>Save as Draft</Button>
