@@ -1,11 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "==> Running database migrations..."
-alembic upgrade head
-
-echo "==> Seeding product catalog..."
-python scripts/bootstrap.py
+echo "==> Initializing database..."
+python scripts/init_db.py
 
 echo "==> Starting API server..."
 exec uvicorn app.main:app \
