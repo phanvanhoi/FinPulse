@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query, Request, Response
 
 from app.config import settings
 from app.dependencies import DB, CurrentUser
