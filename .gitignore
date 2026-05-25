@@ -1,0 +1,14 @@
+.env
+backend/uploads/
+infrastructure/nginx/conf.d/ssl.conf
+infrastructure/nginx/conf.d/default.conf.disabled
+__pycache__/
+*.pyc
+node_modules/
+.next/
+*.egg-info/
+.venv/
+dist/
+.ruff_cache/
+*.db
+.DS_Store
