@@ -13,7 +13,6 @@ from app.models.store import Store
 from app.models.financial import FinancialPeriod, PeriodType
 from app.models.marketing import AdCampaign, CampaignMetricsDaily, CampaignStatus as AdCampaignStatus
 from app.services import store_service
-from app.services import commerce_insight_service
 from app.schemas.dashboard_commerce import (
     CommerceDashboardOverview,
     CommerceInsightPreview,
@@ -86,6 +85,8 @@ async def get_commerce_overview(
     db: AsyncSession,
     org_id: uuid.UUID,
     period_days: int = 30,
+    *,
+    include_insights: bool = True,
 ) -> CommerceDashboardOverview:
     period_start, period_end = _period_bounds(period_days)
     prev_start, prev_end = _previous_period_bounds(period_start, period_days)
@@ -282,17 +283,21 @@ async def get_commerce_overview(
         avg_order_value=avg_order_value.quantize(Decimal("0.01")),
     )
 
-    generated_insights = await commerce_insight_service.generate_commerce_insights(db, org_id, period_days)
-    insights = [
-        CommerceInsightPreview(
-            insight_type=i.insight_type.value,
-            category=i.category.value,
-            title=i.title,
-            body_markdown=i.body_markdown,
-            severity=i.severity.value,
-        )
-        for i in generated_insights
-    ]
+    insights: list[CommerceInsightPreview] = []
+    if include_insights:
+        from app.services import commerce_insight_service
+
+        generated_insights = await commerce_insight_service.generate_commerce_insights(db, org_id, period_days)
+        insights = [
+            CommerceInsightPreview(
+                insight_type=i.insight_type.value,
+                category=i.category.value,
+                title=i.title,
+                body_markdown=i.body_markdown,
+                severity=i.severity.value,
+            )
+            for i in generated_insights
+        ]
 
     finance_snapshot = await _build_finance_snapshot(db, org_id, revenue)
     marketing_snapshot = await _build_marketing_snapshot(db, org_id, live_campaigns, units_sold, period_start, period_end)

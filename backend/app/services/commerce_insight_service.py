@@ -6,10 +6,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.campaign import CampaignStatus, SalesCampaign
 from app.models.insight import AIInsight, InsightCategory, InsightSeverity, InsightType
-from app.models.order import Order, OrderStatus
-from app.services import dashboard_commerce_service
 
 
 @dataclass
@@ -22,7 +19,9 @@ class GeneratedInsight:
 
 
 async def generate_commerce_insights(db: AsyncSession, org_id: uuid.UUID, period_days: int = 30) -> list[GeneratedInsight]:
-    overview = await dashboard_commerce_service.get_commerce_overview(db, org_id, period_days)
+    from app.services import dashboard_commerce_service
+
+    overview = await dashboard_commerce_service.get_commerce_overview(db, org_id, period_days, include_insights=False)
     kpis = overview.kpis
     setup = overview.setup
     insights: list[GeneratedInsight] = []
