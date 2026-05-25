@@ -6,6 +6,14 @@ This script creates all tables on first run, then stamps Alembic to head.
 """
 
 import asyncio
+import sys
+import traceback
+from pathlib import Path
+
+# `python scripts/init_db.py` puts scripts/ on sys.path — add project root for `app` imports
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 from alembic import command
 from alembic.config import Config
@@ -42,17 +50,23 @@ async def _seed_catalog() -> None:
 
 
 def main() -> None:
-    tables = _existing_tables()
+    try:
+        tables = _existing_tables()
+        print(f"Found {len(tables)} existing table(s).")
 
-    if "organizations" not in tables:
-        _create_all_and_stamp()
-    else:
-        print("Existing database — applying Alembic migrations...")
-        _run_migrations()
+        if "organizations" not in tables:
+            _create_all_and_stamp()
+        else:
+            print("Existing database — applying Alembic migrations...")
+            _run_migrations()
 
-    print("Seeding product catalog...")
-    asyncio.run(_seed_catalog())
-    print("Database ready.")
+        print("Seeding product catalog...")
+        asyncio.run(_seed_catalog())
+        print("Database ready.")
+    except Exception:
+        print("FATAL: Database initialization failed:")
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":

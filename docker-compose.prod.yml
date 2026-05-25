@@ -43,9 +43,8 @@ services:
     environment:
       APP_ENV: production
       DEBUG: "false"
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-finpulse}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-finpulse}
-      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-finpulse}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-finpulse}
       REDIS_URL: redis://redis:6379/0
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
     volumes:
       - backend_uploads:/app/uploads
     depends_on:
@@ -74,8 +73,6 @@ services:
     environment:
       APP_ENV: production
       DEBUG: "false"
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-finpulse}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-finpulse}
-      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-finpulse}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-finpulse}
       REDIS_URL: redis://redis:6379/0
     volumes:
       - backend_uploads:/app/uploads
@@ -97,8 +94,6 @@ services:
     environment:
       APP_ENV: production
       DEBUG: "false"
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-finpulse}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-finpulse}
-      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-finpulse}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-finpulse}
       REDIS_URL: redis://redis:6379/0
     depends_on:
       backend:
