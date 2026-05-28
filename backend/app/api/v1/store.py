@@ -29,14 +29,14 @@ async def _get_org_store(db: AsyncSession, organization_id: uuid.UUID):
 @router.get("", response_model=StoreResponse)
 async def get_store(current_user: CurrentUser, db: DB):
     store = await _get_org_store(db, current_user.organization_id)
-    return store
+    return await store_service.store_to_response(db, store)
 
 
 @router.patch("", response_model=StoreResponse)
 async def update_store(payload: StoreUpdateRequest, current_user: CurrentUser, db: DB):
     store = await _get_org_store(db, current_user.organization_id)
     store = await store_service.update_store(db, store, payload)
-    return store
+    return await store_service.store_to_response(db, store)
 
 
 @router.post("/logo", response_model=StoreResponse)
@@ -47,7 +47,7 @@ async def upload_logo(current_user: CurrentUser, db: DB, file: UploadFile = File
     extension = store_service.validate_logo_file(file.filename or "logo.png", file.content_type, len(content))
     await store_service.save_store_logo(store, content, extension)
     await db.flush()
-    return store
+    return await store_service.store_to_response(db, store)
 
 
 @router.post("/domain", response_model=DomainVerificationResponse)
@@ -73,4 +73,5 @@ async def verify_custom_domain(current_user: CurrentUser, db: DB):
 @router.get("/public/{slug}", response_model=PublicStoreResponse)
 async def get_public_store(slug: str, db: DB):
     store = await store_service.get_public_store_by_slug(db, slug)
+    await db.refresh(store)
     return store

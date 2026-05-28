@@ -176,3 +176,40 @@ async def save_store_logo(store: Store, file_bytes: bytes, extension: str) -> st
     logo_url = f"{settings.BACKEND_URL.rstrip('/')}/uploads/logos/{filename}"
     store.logo_url = logo_url
     return logo_url
+
+
+async def store_to_response(db: AsyncSession, store: Store):
+    """Build API-safe store payload (refresh ORM row to avoid MissingGreenlet)."""
+    from app.schemas.store import StoreResponse
+
+    await db.refresh(store)
+
+    status = store.domain_verification_status
+    if hasattr(status, "value"):
+        status = status.value
+
+    tip_options = store.tip_options
+    if not tip_options:
+        tip_options = [10, 15, 20]
+
+    return StoreResponse(
+        id=store.id,
+        organization_id=store.organization_id,
+        name=store.name,
+        slug=store.slug,
+        logo_url=store.logo_url,
+        favicon_url=store.favicon_url,
+        custom_domain=store.custom_domain,
+        domain_verification_status=str(status),
+        domain_verification_token=store.domain_verification_token,
+        tips_enabled=store.tips_enabled,
+        tip_options=tip_options,
+        facebook_pixel_id=store.facebook_pixel_id,
+        google_analytics_id=store.google_analytics_id,
+        abandoned_checkout_enabled=store.abandoned_checkout_enabled,
+        abandoned_checkout_delay_minutes=store.abandoned_checkout_delay_minutes,
+        abandoned_checkout_email_subject=store.abandoned_checkout_email_subject,
+        abandoned_checkout_email_body=store.abandoned_checkout_email_body,
+        created_at=store.created_at,
+        updated_at=store.updated_at,
+    )
