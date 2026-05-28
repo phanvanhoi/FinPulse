@@ -6,22 +6,11 @@ from unittest.mock import patch
 import pytest
 from httpx import AsyncClient
 
-from app.tests.helpers import checkout_payload
+from app.tests.helpers import checkout_payload, signup_seller
 
 
 async def _setup_seller(client: AsyncClient) -> tuple[str, str]:
-    resp = await client.post(
-        "/api/v1/auth/signup",
-        json={
-            "email": f"seller-{uuid.uuid4().hex[:8]}@example.com",
-            "password": "securepassword123",
-            "name": "Seller",
-            "organization_name": "Print Shop",
-        },
-    )
-    token = resp.json()["access_token"]
-    store = await client.get("/api/v1/store", headers={"Authorization": f"Bearer {token}"})
-    return token, store.json()["slug"]
+    return await signup_seller(client)
 
 
 @pytest.mark.asyncio

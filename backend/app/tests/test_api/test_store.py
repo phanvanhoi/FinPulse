@@ -1,21 +1,15 @@
+import uuid
+
 import io
 
 import pytest
 from httpx import AsyncClient
 
+from app.tests.helpers import signup_seller_email
+
 
 async def _signup_and_get_token(client: AsyncClient) -> str:
-    response = await client.post(
-        "/api/v1/auth/signup",
-        json={
-            "email": "store@example.com",
-            "password": "securepassword123",
-            "name": "Store Owner",
-            "organization_name": "My Print Shop",
-        },
-    )
-    assert response.status_code == 200
-    return response.json()["access_token"]
+    return await signup_seller_email(client, f"store-{uuid.uuid4().hex[:8]}@example.com")
 
 
 @pytest.mark.asyncio

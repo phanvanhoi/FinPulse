@@ -11,21 +11,11 @@ from sqlalchemy import select
 from app.models.cart import Cart, CartStatus
 from app.models.store import Store
 from app.services.abandoned_cart_service import process_abandoned_checkouts
-from app.tests.helpers import checkout_payload
+from app.tests.helpers import checkout_payload, signup_seller
 
 
 async def _create_live_campaign(client: AsyncClient) -> tuple[str, str, str]:
-    email = f"seller-{uuid.uuid4().hex[:8]}@example.com"
-    signup = await client.post(
-        "/api/v1/auth/signup",
-        json={
-            "email": email,
-            "password": "securepassword123",
-            "name": "Seller",
-            "organization_name": "Recovery Shop",
-        },
-    )
-    token = signup.json()["access_token"]
+    token, store_slug = await signup_seller(client, org_name="Recovery Shop")
     headers = {"Authorization": f"Bearer {token}"}
 
     await client.patch(

@@ -4,61 +4,23 @@ from fastapi import APIRouter
 from jose import JWTError
 from sqlalchemy import select
 
-from app.core.exceptions import BadRequestError, ConflictError, UnauthorizedError
+from app.core.exceptions import BadRequestError, UnauthorizedError
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    hash_password,
     verify_password,
 )
 from app.dependencies import DB, CurrentUser
-from app.models.organization import Organization
 from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
     RefreshRequest,
-    SignupRequest,
     TokenResponse,
     UserResponse,
 )
 
 router = APIRouter()
-
-
-@router.post("/signup", response_model=TokenResponse)
-async def signup(request: SignupRequest, db: DB):
-    # Check if email already exists
-    result = await db.execute(select(User).where(User.email == request.email))
-    if result.scalar_one_or_none():
-        raise ConflictError("Email already registered")
-
-    # Create organization
-    slug = request.organization_name.lower().replace(" ", "-")
-    # Ensure unique slug
-    result = await db.execute(select(Organization).where(Organization.slug == slug))
-    if result.scalar_one_or_none():
-        slug = f"{slug}-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
-
-    org = Organization(name=request.organization_name, slug=slug)
-    db.add(org)
-    await db.flush()
-
-    # Create user
-    user = User(
-        organization_id=org.id,
-        email=request.email,
-        password_hash=hash_password(request.password),
-        name=request.name,
-        last_login_at=datetime.now(UTC),
-    )
-    db.add(user)
-    await db.flush()
-
-    return TokenResponse(
-        access_token=create_access_token({"sub": str(user.id)}),
-        refresh_token=create_refresh_token({"sub": str(user.id)}),
-    )
 
 
 @router.post("/login", response_model=TokenResponse)

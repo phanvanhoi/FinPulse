@@ -6,21 +6,13 @@ from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.tests.helpers import checkout_payload
+from app.tests.helpers import checkout_payload, signup_seller, signup_seller_email
 
 
 async def _setup_seller_with_paid_order(client: AsyncClient) -> str:
-    resp = await client.post(
-        "/api/v1/auth/signup",
-        json={
-            "email": f"seller-{uuid.uuid4().hex[:8]}@example.com",
-            "password": "securepassword123",
-            "name": "Seller",
-            "organization_name": "Dashboard Shop",
-        },
-    )
-    token = resp.json()["access_token"]
+    token, _ = await signup_seller(client, org_name="Dashboard Shop")
     headers = {"Authorization": f"Bearer {token}"}
 
     products = (await client.get("/api/v1/products")).json()["products"]
@@ -74,17 +66,16 @@ async def _setup_seller_with_paid_order(client: AsyncClient) -> str:
 
 
 @pytest.mark.asyncio
-async def test_commerce_overview_empty(client: AsyncClient):
-    resp = await client.post(
-        "/api/v1/auth/signup",
-        json={
-            "email": f"new-{uuid.uuid4().hex[:8]}@example.com",
-            "password": "securepassword123",
-            "name": "New Seller",
-            "organization_name": "Empty Shop",
-        },
+async def test_commerce_overview_empty(client: AsyncClient, db_session: AsyncSession):
+    from app.tests.helpers import create_seller_in_db, TEST_PASSWORD
+
+    email, password, _ = await create_seller_in_db(
+        db_session,
+        email=f"new-{uuid.uuid4().hex[:8]}@example.com",
+        org_name="Empty Shop",
     )
-    token = resp.json()["access_token"]
+    login = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    token = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     overview = await client.get("/api/v1/dashboard/commerce-overview", headers=headers)
@@ -126,16 +117,9 @@ async def test_commerce_overview_with_order(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_refresh_insights(client: AsyncClient):
-    resp = await client.post(
-        "/api/v1/auth/signup",
-        json={
-            "email": f"insights-{uuid.uuid4().hex[:8]}@example.com",
-            "password": "securepassword123",
-            "name": "Seller",
-            "organization_name": "Insight Shop",
-        },
+    token = await signup_seller_email(
+        client, f"insights-{uuid.uuid4().hex[:8]}@example.com", org_name="Insight Shop"
     )
-    token = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     refresh = await client.post("/api/v1/insights/refresh", headers=headers)
@@ -149,16 +133,9 @@ async def test_refresh_insights(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_commerce_overview_period_days(client: AsyncClient):
-    resp = await client.post(
-        "/api/v1/auth/signup",
-        json={
-            "email": f"period-{uuid.uuid4().hex[:8]}@example.com",
-            "password": "securepassword123",
-            "name": "Seller",
-            "organization_name": "Period Shop",
-        },
+    token = await signup_seller_email(
+        client, f"period-{uuid.uuid4().hex[:8]}@example.com", org_name="Period Shop"
     )
-    token = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     overview = await client.get("/api/v1/dashboard/commerce-overview?period_days=7", headers=headers)

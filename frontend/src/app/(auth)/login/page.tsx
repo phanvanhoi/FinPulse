@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button, Card, Form, Input, Typography, message } from "antd";
 import { MailOutlined, LockOutlined } from "@ant-design/icons";
 import { useAuthStore } from "@/stores/auth-store";
@@ -62,12 +61,6 @@ export default function LoginPage() {
             </Button>
           </Form.Item>
         </Form>
-
-        <div style={{ textAlign: "center" }}>
-          <Text type="secondary">
-            Don&apos;t have an account? <Link href="/signup">Sign up</Link>
-          </Text>
-        </div>
       </Card>
     </div>
   );

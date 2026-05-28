@@ -11,7 +11,6 @@ FinPulse là nền tảng bán hàng in ấn / print-on-demand (POD) kiểu SocP
 | ----------------------- | --------------------------------------------- |
 | Trang chủ / Dashboard   | `http://YOUR_DOMAIN/`                         |
 | Đăng nhập               | `http://YOUR_DOMAIN/login`                    |
-| Đăng ký                 | `http://YOUR_DOMAIN/signup`                   |
 | Storefront (công khai)  | `http://YOUR_DOMAIN/store/{slug-cua-hang}`    |
 | Trang campaign bán hàng | `http://YOUR_DOMAIN/campaign/{slug-campaign}` |
 | Kiểm tra API            | `http://YOUR_DOMAIN/health`                   |
@@ -23,25 +22,42 @@ FinPulse là nền tảng bán hàng in ấn / print-on-demand (POD) kiểu SocP
 
 ## 2. Bắt đầu — Tài khoản Seller
 
-### 2.1 Đăng ký
+**Đăng ký công khai đã tắt.** Admin tạo tài khoản seller bằng script trên server (xem mục 2.1).
 
-1. Mở `/signup`
-2. Nhập:
-  - **Email** — email đăng nhập
-  - **Password** — tối thiểu 8 ký tự
-  - **Tên** — tên hiển thị
-  - **Tên cửa hàng / tổ chức** — tên thương hiệu
-3. Bấm **Create Account**
+### 2.1 Tạo tài khoản seller (script)
 
-Hệ thống tự tạo **Organization** và **Store** (cửa hàng) cho bạn.
+Chạy trong container backend (production):
+
+```bash
+cd /root/FinPulse/FinPulse
+
+docker compose -f docker-compose.prod.yml exec backend \
+  python scripts/create_seller.py \
+  --email seller@yourdomain.com \
+  --password 'MatKhauManh123' \
+  --name "Ten Seller" \
+  --org "Ten Cua Hang"
+```
+
+Script tự tạo **Organization**, **User** và **Store** (storefront). Kết quả in ra link đăng nhập và URL storefront.
+
+| Tham số | Bắt buộc | Mô tả |
+| -------- | -------- | ----- |
+| `--email` | Có | Email đăng nhập |
+| `--password` | Có | Mật khẩu (tối thiểu 8 ký tự) |
+| `--name` | Có | Tên hiển thị seller |
+| `--org` | Có | Tên tổ chức / thương hiệu cửa hàng |
+| `--skip-store` | Không | Chỉ tạo user + org, không tạo storefront |
+
+Tạo thêm seller khác: chạy lại lệnh với email khác.
 
 ### 2.2 Đăng nhập
 
 1. Mở `/login`
-2. Nhập email và mật khẩu
+2. Nhập email và mật khẩu (do admin cấp)
 3. Bấm **Sign In**
 
-Nếu đã đăng nhập rồi, mở `/login` hoặc `/signup` sẽ tự chuyển về Dashboard.
+Nếu đã đăng nhập rồi, mở `/login` sẽ tự chuyển về Dashboard.
 
 ---
 
@@ -383,7 +399,7 @@ curl -s http://127.0.0.1/health
 ## 10. Quy trình bán hàng đầy đủ
 
 ```
-1. Signup → Login
+1. Admin tạo seller (`create_seller.py`) → Seller đăng nhập
 2. Storefront: logo, Pixel/GA, tips (tuỳ chọn)
 3. Campaigns → New → chọn sản phẩm → upload design → Publish
 4. Chia sẻ link /campaign/{slug} hoặc /store/{slug}
@@ -399,7 +415,7 @@ curl -s http://127.0.0.1/health
 
 | Triệu chứng                    | Nguyên nhân                   | Cách xử lý                                           |
 | ------------------------------ | ----------------------------- | ---------------------------------------------------- |
-| Signup failed                  | Backend lỗi hoặc email trùng  | Xem `logs backend`; thử email khác hoặc Login        |
+| Không đăng nhập được            | Sai email/mật khẩu hoặc chưa tạo user | Chạy `create_seller.py` hoặc reset mật khẩu (script mới) |
 | 502 Bad Gateway                | Backend/frontend chưa healthy | `docker compose ps`; đợi backend healthy rồi `up -d` |
 | Port 80 không vào được         | Nginx chưa chạy               | Kiểm tra `nginx` container; mở firewall port 80      |
 | Campaign không hiện trên store | Chưa Publish                  | Campaign phải status **LIVE**                        |

@@ -6,23 +6,16 @@ from httpx import AsyncClient
 from app.integrations.burgerprints.exceptions import BurgerPrintsAuthError
 
 
-async def _signup_token(client: AsyncClient, email: str = "bp@example.com") -> str:
-    response = await client.post(
-        "/api/v1/auth/signup",
-        json={
-            "email": email,
-            "password": "securepassword123",
-            "name": "BP Seller",
-            "organization_name": "BP Shop",
-        },
-    )
-    assert response.status_code == 200
-    return response.json()["access_token"]
+from app.tests.helpers import signup_seller_email
+
+
+async def _signup_token(client: AsyncClient, email: str) -> str:
+    return await signup_seller_email(client, email)
 
 
 @pytest.mark.asyncio
 async def test_burgerprints_status_not_connected(client: AsyncClient):
-    token = await _signup_token(client)
+    token = await _signup_token(client, "bp@example.com")
     response = await client.get(
         "/api/v1/connections/burgerprints/status",
         headers={"Authorization": f"Bearer {token}"},
